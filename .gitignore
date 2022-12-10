@@ -1,6 +1,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/node,macos,windows,cmake,rust,python,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=node,macos,windows,cmake,rust,python,linux
 
+req.sh
+samplereq.json
+
 ### CMake ###
 CMakeLists.txt.user
 CMakeCache.txt
