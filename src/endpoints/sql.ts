@@ -1,6 +1,46 @@
-import { HandlerFn, Payload } from "./requestHandler";
+import { HandlerFn, HandlerReturn, OutboundResponse, Payload } from "./requestHandler";
+import { loadVars } from "../index";
 
-export const sqlHandler : HandlerFn = (payload: Payload) => {
-    console.log("SQL HANDLER TRIGGERED");
-    throw new Error();
+type SqlPayload = {
+    _type: string;
+}
+
+const isValidSqlPayload = (payload: Payload): payload is SqlPayload => {
+    return typeof payload._type === "string";
+}
+
+export const sqlHandler : HandlerFn = async (payload: Payload) => {
+    const [TARGET_SQL] = loadVars(["TARGET_SQL"]);
+    if(!isValidSqlPayload(payload)) {
+        return {
+            status: "failure",
+            content: {
+                reason: "SQLHANDLER: Payload `" + JSON.stringify(payload) + "` is not valid",
+                statusCode: 400,
+            },
+        } as HandlerReturn
+    };
+
+    let response : Response = await fetch(TARGET_SQL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if(response.status != 200) {
+        return {
+            status: "failure",
+            content: {
+                reason: "SQL endpoint returned non-200 status code",
+                statusCode: response.status,
+            },
+        } as HandlerReturn;
+    }
+
+    return {
+        status: "success",
+        content: response as unknown as OutboundResponse,
+    } as HandlerReturn;
 };

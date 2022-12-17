@@ -1,4 +1,5 @@
 import { HandlerFn, HandlerReturn, OutboundResponse, Payload } from "./requestHandler";
+import { loadVars } from "../index";
 
 type DeployPayload = {
     _type: string;
@@ -21,7 +22,7 @@ const isValidDeployPayload = (payload: Payload): payload is DeployPayload => {
 }
 
 export const deployHandler : HandlerFn = async (payload: Payload) => {
-    if(process.env.TARGET_DEPLOY === undefined) throw new Error("TARGET_DEPLOY environment variable not set");
+    const [TARGET_DEPLOY] = loadVars(["TARGET_DEPLOY"]);
 
     if(!isValidDeployPayload(payload)) {
         return {
@@ -33,8 +34,7 @@ export const deployHandler : HandlerFn = async (payload: Payload) => {
         } as HandlerReturn;
     }
 
-    const deploy_url : string = process.env.TARGET_DEPLOY;
-    let returnResponse : Response = await fetch(deploy_url, {
+    let response : Response = await fetch(TARGET_DEPLOY, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -43,18 +43,18 @@ export const deployHandler : HandlerFn = async (payload: Payload) => {
     });
 
     // TODO: Handle non-200 status codes better (probably on a case-by-case basis depending on response)
-    if(returnResponse.status !== 200) {
+    if(response.status !== 200) {
         return {
             status: "failure",
             content: {
                 reason: "Deploy endpoint returned non-200 status code",
-                statusCode: returnResponse.status,
+                statusCode: response.status,
             },
         } as HandlerReturn;
     }
 
     return {
         status: "success",
-        content: returnResponse as unknown as OutboundResponse,
+        content: response as unknown as OutboundResponse,
     } as HandlerReturn;
 };

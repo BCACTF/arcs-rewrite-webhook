@@ -1,4 +1,5 @@
 import { Payload, HandlerFn, OutboundResponse, HandlerReturn } from './requestHandler';
+import { loadVars } from '../index';
 
 type Urgency = "LOW" | "MEDIUM" | "HIGH";
 type DiscordPayload = {
@@ -17,17 +18,9 @@ const isValidDiscordPayload = (payload: Payload): payload is DiscordPayload => {
         && typeof payload.content === "string";
 };
 
-// TODO --> move this to be a startup function in index.ts or something so that it doesn't crash suddenly mid-operation
-const loadVars = (): Array<string> => {
-    const vars = ["TARGET_DISCORD", "DISCORD_ADMIN_ROLE_ID", "DISCORD_PROBLEM_WRITER_ROLE_ID"];
-    const missingVars = vars.filter(v => process.env[v] === undefined);
-    if(missingVars.length > 0) throw new Error("Missing environment variables: " + missingVars.join(", "));
-    return vars.map(v => process.env[v]) as Array<string>;
-}
-
-
 export const discordHandler: HandlerFn = async (payload: Payload) => {
-    const [webhook_url, admin, problem_writer] = loadVars();
+    const [WEBHOOK_URL, ADMIN_ROLE_ID, PROBLEM_WRITER_ROLE_ID] = loadVars(["TARGET_DISCORD", "DISCORD_ADMIN_ROLE_ID", "DISCORD_PROBLEM_WRITER_ROLE_ID"]);
+    
     if (!isValidDiscordPayload(payload)) return {
         status: "failure",
         content: {
@@ -40,13 +33,13 @@ export const discordHandler: HandlerFn = async (payload: Payload) => {
     let message_pings;
     switch(payload.urgency){
         case "LOW":
-            message_pings = "<@&" + admin + ">";
+            message_pings = "<@&" + ADMIN_ROLE_ID + ">";
             break;
         case "MEDIUM":
-            message_pings = "<@&" + admin + ">";
+            message_pings = "<@&" + ADMIN_ROLE_ID + ">";
             break;
         case "HIGH":
-            message_pings = "<@&" + admin + "> <@&" + problem_writer + ">";
+            message_pings = "<@&" + ADMIN_ROLE_ID + "> <@&" + PROBLEM_WRITER_ROLE_ID + ">";
             break;
     }
 
@@ -61,7 +54,7 @@ export const discordHandler: HandlerFn = async (payload: Payload) => {
             "content": message_body
         };
 
-    let response : Response = await fetch(webhook_url, {
+    let response : Response = await fetch(WEBHOOK_URL, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",

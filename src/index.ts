@@ -6,6 +6,12 @@ import dotenv from 'dotenv'
 dotenv.config();
 const port = process.env.PORT || 3000;
 
+export const loadVars = (envVars: Array<string>): Array<string> => {
+    const missingVars = envVars.filter(v => process.env[v] === undefined);
+    if(missingVars.length > 0) throw new Error("Missing environment variables: " + missingVars.join(", "));
+    return envVars.map(v => process.env[v]) as Array<string>;
+}
+
 const app = express();
 app.use(bodyParser.json());
 

@@ -49,6 +49,7 @@ router.post("/", async (req: Request, res: Response) => {
     res.statusMessage = "Request pushed to: ";
     
     // TODO --> deal with the results returned from each HandlerFn
+    // TODO --> clean up actual handlers, repeated code could be abstracted to functions
     targetEntries.map(([targetName, targetData]) => {
         const payload = { ...targetData, _type: messageType };
         const handlerName = targetName.toUpperCase();
