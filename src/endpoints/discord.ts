@@ -1,26 +1,57 @@
-import { Payload, HandlerFn, OutboundResponse, HandlerReturn } from './requestHandler';
+import { Payload, HandlerFn, OutboundResponse, HandlerReturn, statusCodeOkay } from './requestHandler';
 import { loadVars } from '../index';
 
-type Urgency = "LOW" | "MEDIUM" | "HIGH";
+// type Urgency = "LOW" | "MEDIUM" | "HIGH";
+enum Urgency {
+    LOW = "LOW",
+    MEDIUM = "MEDIUM",
+    HIGH = "HIGH",
+}
+const allUrgencyStrings = [Urgency.LOW, Urgency.MEDIUM, Urgency.HIGH] as string[];
+const isUrgency = (urgency: unknown): urgency is Urgency => {
+    if (typeof urgency !== 'string') return false;
+    else return allUrgencyStrings.includes(urgency.toUpperCase());
+};
+
 type DiscordPayload = {
     _type: string;
     urgency: Urgency;
     content: string;
 };
 
-const isUrgency = (urgency: string) => {
-    return ["LOW", "MEDIUM", "HIGH"].includes(urgency.toUpperCase())
-};
-
 // TODO --> create auth token for discord webhook to prevent unauthorized messages
 const isValidDiscordPayload = (payload: Payload): payload is DiscordPayload => {
-    return typeof payload.urgency === "string" && isUrgency(payload.urgency)
-        && typeof payload.content === "string";
+    return isUrgency(payload.urgency) && typeof payload.content === "string";
 };
 
+interface Roles {
+    adminRole: string,
+    writerRole: string,
+}
+const getRoles = (): Roles => {
+    const [adminRole, writerRole] = loadVars(["DISCORD_ADMIN_ROLE_ID", "DISCORD_PROBLEM_WRITER_ROLE_ID"]);
+    return { adminRole, writerRole };
+};
+
+
+const urgencyMap: Record<Urgency, (keyof Roles)[]> = {
+    LOW: ['adminRole'],
+    MEDIUM: ['adminRole'],
+    HIGH: ['adminRole', 'writerRole'],
+};
+const getPings = (urgency: Urgency, roles: Roles) => urgencyMap[urgency].map(key => roles[key]).map(role => `<@&${role}>`);
+
+
+const getUrl = () => loadVars(["TARGET_DISCORD"])[0];
+
+const formatMessage = (urgency: Urgency, pings: string[], content: string) => [
+    '-'.repeat(20),
+    `**Urgency: ${urgency}**`,
+    pings.join(", "),
+    content,
+].join('\n');
+
 export const discordHandler: HandlerFn = async (payload: Payload) => {
-    const [WEBHOOK_URL, ADMIN_ROLE_ID, PROBLEM_WRITER_ROLE_ID] = loadVars(["TARGET_DISCORD", "DISCORD_ADMIN_ROLE_ID", "DISCORD_PROBLEM_WRITER_ROLE_ID"]);
-    
     if (!isValidDiscordPayload(payload)) return {
         status: "failure",
         content: {
@@ -29,51 +60,39 @@ export const discordHandler: HandlerFn = async (payload: Payload) => {
         },
     };
 
-    payload.urgency = payload.urgency.toUpperCase() as Urgency;
-    let message_pings;
-    switch(payload.urgency){
-        case "LOW":
-            message_pings = "<@&" + ADMIN_ROLE_ID + ">";
-            break;
-        case "MEDIUM":
-            message_pings = "<@&" + ADMIN_ROLE_ID + ">";
-            break;
-        case "HIGH":
-            message_pings = "<@&" + ADMIN_ROLE_ID + "> <@&" + PROBLEM_WRITER_ROLE_ID + ">";
-            break;
-    }
+    const targetUrl = getUrl();
 
-    const message_body = "------------------------------------\n" +    
-                         "**Urgency:** " + payload.urgency + "\n" +
-                          message_pings                    + "\n" +
-                          payload.content;
+    const roles = getRoles();
+    const urgency = payload.urgency;
+    const message_pings = getPings(urgency, roles);
+
+
+    const message_body = formatMessage(urgency, message_pings, payload.content);
 
     // could create a pfp for the bot, but this is fine for now
     let processedBody = {
-            "username": "BCACTF Notification",
-            "content": message_body
-        };
+        "username": "BCACTF Notification",
+        "content": message_body
+    };
 
-    let response : Response = await fetch(WEBHOOK_URL, {
+    let response = await fetch(targetUrl, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(processedBody),
     });
     
-    if(response.status !== 200) {
+    if (!statusCodeOkay(response.status)) {
         return {
             status: "failure",
             content: {
-                reason: "Discord endpoint returned non-200 status code",
+                reason: await response.json(),
                 statusCode: response.status,
             },
-        } as HandlerReturn;
+        };
     }
 
     return {
         status: "success",
-        content: response as unknown as OutboundResponse
-    } as HandlerReturn;
+        content: response
+    };
 };

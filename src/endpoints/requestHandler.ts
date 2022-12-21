@@ -20,10 +20,13 @@ export type DataError = {
     statusCode: number;
 };
 
-export type OutboundResponse = ReturnType<typeof fetch>;
+export type OutboundResponse = Awaited<ReturnType<typeof fetch>>;
 export type HandlerReturn = Result<OutboundResponse, DataError>;
 export type HandlerFn = (payload: Payload) => Promise<HandlerReturn> | HandlerReturn;
 
+export const statusCodeOkay = (code: number): boolean => {
+	return code >= 200 && code < 300;
+};
 
 type HandlerName = "DISCORD" | "SQL" | "DEPLOY" | "MAIN";
 
@@ -67,4 +70,28 @@ router.post("/", async (req: Request, res: Response) => {
     console.log(res.statusMessage);
     res.status(200);
     res.send();    
+});
+
+router.post('/main', async(req: Request, res: Response) => {
+    console.log("--------------------")
+    console.log("main request received");
+    console.log(req.body);
+    res.status(200);
+    res.send();
+});
+
+router.post("/sql", async (req: Request, res: Response) => {
+    console.log("--------------------")
+    console.log("sql request received");
+    console.log(req.body);
+    res.status(200);
+    res.send();
+})
+
+router.post("/deploy", async (req: Request, res: Response) => {
+    console.log("--------------------")
+    console.log("deploy request received");
+    console.log(req.body);
+    res.status(200);
+    res.send();
 });

@@ -1,25 +1,42 @@
-import { HandlerFn, HandlerReturn, OutboundResponse, Payload } from "./requestHandler";
+import { HandlerFn, HandlerReturn, OutboundResponse, Payload, statusCodeOkay } from "./requestHandler";
 import { loadVars } from "../index";
 
 type DeployPayload = {
     _type: string;
     chall_id: Number;
     deploy_race_lock_id: Number;
-    chall_name?: string;
-    chall_desc?: string;
-    chall_points?: Number;
+    chall_name?: string | null;
+    chall_desc?: string | null;
+    chall_points?: Number | null;
+    chall_metadata?: string | null;
 }
 
-const isNumber = (n: unknown) : n is Number => {
-    return !isNaN(n as number);
+const isValidNumber = (n: unknown): boolean => {
+    if (typeof n === 'string') {
+        const parsed = Number.parseInt(n, 16);
+        return !Number.isNaN(parsed);
+    } else if (typeof n === 'number') return true;
+    return false;
 }
+
+const isNullableString = (str: unknown): str is string | null => str === null || typeof str === "string";
 
 const isValidDeployPayload = (payload: Payload): payload is DeployPayload => {
-    return isNumber(payload.chall_id) && isNumber(payload.deploy_race_lock_id) && typeof payload._type === "string"
-        && (payload.chall_name === undefined || typeof payload.chall_name === "string")
-        && (payload.chall_desc === undefined || typeof payload.chall_desc === "string")
-        && (payload.chall_points === undefined || isNumber(payload.chall_points)); 
-}
+    const idsValid = isValidNumber(payload.chall_id) && isValidNumber(payload.deploy_race_lock_id);
+    const payloadValid = typeof payload._type === "string";
+    const requiredValid = idsValid && payloadValid;
+
+    const challPointsValid = payload.chall_points === null || isValidNumber(payload.chall_points);
+
+    const challNameValid = isNullableString(payload.chall_name);
+    const challDescValid = isNullableString(payload.chall_desc);
+    const challMetaValid = isNullableString(payload.chall_meta);
+    const challStringsValid = challNameValid && challDescValid && challMetaValid;
+
+    return requiredValid && challPointsValid && challStringsValid;
+};
+
+
 
 export const deployHandler : HandlerFn = async (payload: Payload) => {
     const [TARGET_DEPLOY] = loadVars(["TARGET_DEPLOY"]);
@@ -43,18 +60,21 @@ export const deployHandler : HandlerFn = async (payload: Payload) => {
     });
 
     // TODO: Handle non-200 status codes better (probably on a case-by-case basis depending on response)
-    if(response.status !== 200) {
+    // Should all 200 codes be okay?
+
+    if(!statusCodeOkay(response.status)) {
+        const responseJson = await response.json();
         return {
             status: "failure",
             content: {
-                reason: "Deploy endpoint returned non-200 status code",
+                reason: responseJson.reason || "no_reason_returned",
                 statusCode: response.status,
             },
-        } as HandlerReturn;
+        };
     }
 
     return {
         status: "success",
-        content: response as unknown as OutboundResponse,
-    } as HandlerReturn;
+        content: response,
+    };
 };

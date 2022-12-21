@@ -7,7 +7,7 @@ type MainPayload = {
     
 }
 // TODO --> Update with actual payload specs once finalized
-const isValidMainPayload = (payload: Payload) : payload is MainPayload => {
+const isValidMainPayload = (payload: Payload): payload is MainPayload => {
     return typeof payload._type === "string";
 }
 
@@ -33,6 +33,6 @@ export const mainHandler : HandlerFn = async (payload: Payload) => {
 
     return {
         status: "success",
-        content: response as unknown as OutboundResponse
-    } as HandlerReturn;
+        content: response,
+    };
 };
