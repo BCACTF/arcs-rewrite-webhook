@@ -1,7 +1,6 @@
 import { Payload, HandlerFn, OutboundResponse, HandlerReturn, statusCodeOkay } from './requestHandler';
 import { loadVars } from '../index';
 
-// type Urgency = "LOW" | "MEDIUM" | "HIGH";
 enum Urgency {
     LOW = "LOW",
     MEDIUM = "MEDIUM",

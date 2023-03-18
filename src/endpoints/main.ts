@@ -4,7 +4,6 @@ import { loadVars } from "../index";
 // TODO --> Add fields and stuff once payload specs are finalized
 type MainPayload = {
     _type: string;
-    
 }
 // TODO --> Update with actual payload specs once finalized
 const isValidMainPayload = (payload: Payload): payload is MainPayload => {
