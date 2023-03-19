@@ -50,12 +50,48 @@ export const isUuid = (uuid: unknown): boolean => {
     else return isValidUUID(uuid);
 }
 
-export type HandlerResponse = {
-    status: "success" | "failure";
-    content: Result<String, number> | DataError;
-}
+const mapTargetEntry = (requestType: string, sendSuccess: HandlerName[], sendFail: HandlerName[]) => async (
+    [targetName, targetData]: [string, TargetData]
+): Promise<[string, HandlerReturn]> => {
+    const payload = { ...targetData, _type: requestType };
+    const handlerName = targetName.toUpperCase();
+    if (isHandler(handlerName)) {
+        const handler = handlers[handlerName];
+        try {
+            const response = await handler(payload);
+            sendSuccess.push(handlerName);
+            return [targetName, response];
+        } catch (e) {
+            console.error(e);
+            sendFail.push(handlerName);
+            return [
+                targetName,
+                {
+                    status: "failure",
+                    content: {
+                        statusCode: 500,
+                        reason: `Internal Server Error: ${e}`,
+                    },
+                }
+            ] as [string, HandlerReturn];
+        }
+    } else {
+        console.error("ERROR OCCURRED --> REQUEST DOES NOT MATCH EXISTING TARGETS");
+        return [
+            "<INVALID TARGET>",
+            {
+                status: "failure", 
+                content: {
+                    statusCode: 400, 
+                    reason: `${targetName} is not a valid target`,
+                },
+            },
+        ] as [string, HandlerReturn];
+    }
+};
 
-// parse request for targets that will get forwarded information 
+
+// TODO: add a check to see if the server is running or not
 router.post("/", async (req: Request, res: Response) => {
     // console.log(req.body.targets);
     if(typeof req.body.targets === 'undefined' || typeof req.body._type === 'undefined') {
@@ -66,64 +102,44 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     const targets: Record<string, TargetData> = req.body.targets;
-    const messageType: string = req.body._type;
+    const requestType: string = req.body._type;
     const targetEntries = Object.entries(targets);
 
+    const sendSuccess: HandlerName[] = [];
+    const sendFail: HandlerName[] = [];
     res.statusMessage = "Request pushed to: ";
     
-    // TODO --> deal with the results returned from each HandlerFn
-    // TODO --> clean up actual handlers, repeated code could be abstracted to functions
-    let handler_responses = await Promise.allSettled(targetEntries.map(([targetName, targetData]) => {
-        const payload = { ...targetData, _type: messageType };
-        const handlerName = targetName.toUpperCase();
-        if (isHandler(handlerName)) {
-            const handler = handlers[handlerName];
-            const response = handler(payload);
-            res.statusMessage += targetName + ", ";
-            
-            return Promise.resolve(response);
+    let handler_responses = await Promise.all(targetEntries.map(mapTargetEntry(requestType, sendSuccess, sendFail)));
+
+    const returnedStatusCodes: number[] = [];
+    
+    const responseEntries = await Promise.all(handler_responses.map(async ([targetName, response]) => {
+        if(response.status === 'success') {
+            returnedStatusCodes.push(response.content.status);
+            let text = await response.content.text();
+            try {
+                return [targetName, JSON.parse(text)];
+            } catch (e) {
+                return [targetName, text];
+            }
         } else {
-            console.log("ERROR OCCURRED --> REQUEST DOES NOT MATCH EXISTING ENDPOINTS");
+            returnedStatusCodes.push(response.content.statusCode);
+
+            return [targetName, response.content];
         }
     }));
+    console.log(responseEntries);
+    console.log(returnedStatusCodes);
 
-
-    let handle_response_bodies = handler_responses.map((response) => { 
-        if(response.status === 'fulfilled'){
-            return response.value as HandlerResponse;
-        } else {
-            // TODO --> improve handling of this case, figure out more specifically what causes undefined returns for value
-            return {
-                status: "failure",
-                content: {
-                    reason: "Promise failed to resolve",
-                    statusCode: 500,
-                }
-            } as HandlerResponse;
-        }
-    });
-
-    console.log(handle_response_bodies.filter((response) => response.status === 'failure'));
+    const targetResponseMap = Object.fromEntries(responseEntries);
     
-    //     if(typeof response !== 'undefined' && response.status === 'fulfilled') {
-    //         if(typeof response.value === 'undefined' || response.value.status === 'failure') {
-    //             return true;
-    //         }
-    //         return false;
-    //     }
-
-    //     return false;
-    // });
 
     // TODO --> notify if any requests got dropped in the process of evaluating the targets 
-    // dropped_handler_responses.forEach((response) => {
-    //     console.log(response);
-    // });
 
     res.statusMessage = res.statusMessage.slice(0, -2);
     console.log(res.statusMessage);
     res.status(200);
-    res.send();    
+    res.send(targetResponseMap);
 });
 
 router.post('/main', async(req: Request, res: Response) => {

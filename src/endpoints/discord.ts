@@ -6,11 +6,22 @@ enum Urgency {
     MEDIUM = "MEDIUM",
     HIGH = "HIGH",
 }
+
+
 const allUrgencyStrings = [Urgency.LOW, Urgency.MEDIUM, Urgency.HIGH] as string[];
-const isUrgency = (urgency: unknown): urgency is Urgency => {
+const isCaseInsentiveUrgency = (urgency: unknown): boolean => {
     if (typeof urgency !== 'string') return false;
-    else return allUrgencyStrings.includes(urgency.toUpperCase());
+    else {
+        console.log(urgency);
+        console.log(urgency.toUpperCase());
+        return allUrgencyStrings.includes(urgency.toUpperCase());
+    }
 };
+
+const upperUrgency = (urgency: Urgency): Urgency =>  {
+    const upper = urgency.toUpperCase();
+    return upper as Urgency;
+}
 
 type DiscordPayload = {
     _type: string;
@@ -20,7 +31,7 @@ type DiscordPayload = {
 
 // TODO --> create auth token for discord webhook to prevent unauthorized messages
 const isValidDiscordPayload = (payload: Payload): payload is DiscordPayload => {
-    return isUrgency(payload.urgency) && typeof payload.content === "string";
+    return isCaseInsentiveUrgency(payload.urgency) && typeof payload.content === "string";
 };
 
 interface Roles {
@@ -45,7 +56,7 @@ const getUrl = () => loadVars(["TARGET_DISCORD"])[0];
 
 const formatMessage = (urgency: Urgency, pings: string[], content: string) => [
     '-'.repeat(20),
-    `**Urgency: ${urgency}**`,
+    `**Urgency: ${urgency.toUpperCase()}**`,
     pings.join(", "),
     content,
 ].join('\n');
@@ -62,7 +73,7 @@ export const discordHandler: HandlerFn = async (payload: Payload) => {
     const targetUrl = getUrl();
 
     const roles = getRoles();
-    const urgency = payload.urgency;
+    const urgency = upperUrgency(payload.urgency);
     const message_pings = getPings(urgency, roles);
 
 
@@ -79,7 +90,7 @@ export const discordHandler: HandlerFn = async (payload: Payload) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(processedBody),
     });
-    
+
     if (!statusCodeOkay(response.status)) {
         return {
             status: "failure",
