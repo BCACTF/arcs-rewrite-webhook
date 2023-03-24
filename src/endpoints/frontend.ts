@@ -1,31 +1,32 @@
-import { HandlerFn, HandlerReturn, OutboundResponse, Payload } from "./requestHandler";
+import { HandlerFn, Payload } from "./requestHandler";
 import { loadVars } from "../index";
 
 // TODO --> Add fields and stuff once payload specs are finalized
-type MainPayload = {
+type FrontendPayload = {
     _type: string;
 }
 // TODO --> Update with actual payload specs once finalized
-const isValidMainPayload = (payload: Payload): payload is MainPayload => {
+const isValidFrontendPayload = (payload: Payload): payload is FrontendPayload => {
     return typeof payload._type === "string";
 }
 
-export const mainHandler : HandlerFn = async (payload: Payload) => {
-    const [TARGET_MAIN] = loadVars(["TARGET_MAIN"]);
-    if(!isValidMainPayload(payload)) {
+export const frontendHandler : HandlerFn = async (payload: Payload) => {
+    const [TARGET_FRONTEND] = loadVars(["TARGET_FRONTEND"]);
+    if(!isValidFrontendPayload(payload)) {
         return {
             status: "failure",
             content: {
-                reason: "MAINHANDLER: Payload `" + JSON.stringify(payload) + "` is not valid",
+                reason: "FRONTENDHANDLER: Payload `" + JSON.stringify(payload) + "` is not valid",
                 statusCode: 400,
             },
         };
     }
 
-    let response : Response = await fetch(TARGET_MAIN, {
+    let response : Response = await fetch(TARGET_FRONTEND, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "Authorization": "Bearer " + process.env.WEBHOOK_SERVER_AUTH_TOKEN,
         },
         body: JSON.stringify(payload),
     });

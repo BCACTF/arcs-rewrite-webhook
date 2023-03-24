@@ -25,6 +25,7 @@ export const sqlHandler : HandlerFn = async (payload: Payload) => {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "Authorization": "Bearer " + process.env.WEBHOOK_SERVER_AUTH_TOKEN,
         },
         body: JSON.stringify(payload),
     });

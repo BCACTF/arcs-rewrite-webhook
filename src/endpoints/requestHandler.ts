@@ -1,12 +1,13 @@
 import express, { Request, Response, Router } from 'express';
 import { validate as isValidUUID } from "uuid";
+import crypto from 'crypto';
 
 export const router : Router = express.Router();
 // handlers for each target service that we recognize
 import { discordHandler } from './discord';
 import { sqlHandler } from './sql';
 import { deployHandler } from './deploy';
-import { mainHandler } from './main';
+import { frontendHandler } from './frontend';
 
 export type Result<T, E> = {
     status: "success",
@@ -29,14 +30,14 @@ export const statusCodeOkay = (code: number): boolean => {
 	return code >= 200 && code < 300;
 };
 
-type HandlerName = "DISCORD" | "SQL" | "DEPLOY" | "MAIN";
+type HandlerName = "DISCORD" | "SQL" | "DEPLOY" | "FRONTEND";
 
 
 const handlers: Record<HandlerName, HandlerFn> = {
     "DISCORD": discordHandler,
     "SQL": sqlHandler,
     "DEPLOY": deployHandler,
-    "MAIN": mainHandler,
+    "FRONTEND": frontendHandler,
 };
 
 const isHandler = (name: string): name is HandlerName => Object.keys(handlers).includes(name);
@@ -62,10 +63,10 @@ const mapTargetEntry = (requestType: string, sendSuccess: HandlerName[], sendFai
             sendSuccess.push(handlerName);
             return [targetName, response];
         } catch (e) {
-            console.error(e);
             sendFail.push(handlerName);
             return [
                 targetName,
+                // may include parse issues, if there is a syntax error, ensure given handler is returning the proper format (json or text)
                 {
                     status: "failure",
                     content: {
@@ -90,15 +91,56 @@ const mapTargetEntry = (requestType: string, sendSuccess: HandlerName[], sendFai
     }
 };
 
+const returnErrReq = (res: Response, message: string, status: number) => {
+    res.statusMessage = message;
+    res.status(status);
+    res.send();
+}
 
 // TODO: add a check to see if the server is running or not
 router.post("/", async (req: Request, res: Response) => {
-    // console.log(req.body.targets);
     if(typeof req.body.targets === 'undefined' || typeof req.body._type === 'undefined') {
-        res.statusMessage = "Malformed Request Body";
-        res.status(400);
-        res.send();
+        returnErrReq(res, "Malformed Request Body", 400);
         return;
+    }
+
+    if(typeof req.headers["authorization"] === 'undefined') {
+        returnErrReq(res, "Unauthorized", 401);
+        return;
+    } else {
+        const authHeader = req.headers["authorization"].split(" ")[1];
+        const serverTokens = [process.env.DEPLOY_SERVER_AUTH_TOKEN, process.env.FRONTEND_SERVER_AUTH_TOKEN];
+
+        if(typeof authHeader === 'undefined') {
+            returnErrReq(res, "Unauthorized", 401);
+            return;
+        }
+
+        let hashedAuthHeader = crypto.createHash('md5').update(authHeader).digest('hex');
+        let hashedServerTokens = serverTokens.map((token) => {
+            if(typeof token !== 'undefined') {
+                return crypto.createHash('md5').update(token).digest('hex');
+            } else {
+                console.error("ERROR: Missing server tokens"); 
+                process.exit();
+            }
+        })
+
+        let undefinedServerTokens = hashedServerTokens.filter(token => (typeof token === 'undefined'));
+        if(undefinedServerTokens.length > 0){
+            console.error("ERROR: Missing server tokens");
+            process.exit();
+        }
+
+        let authorized = (hashedServerTokens as String[]).filter((token) => {
+            console.log(crypto.timingSafeEqual(Buffer.from(token), Buffer.from(hashedAuthHeader)))
+            return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(hashedAuthHeader));
+        })
+
+        if(authorized.length === 0) {
+            returnErrReq(res, "Unauthorized", 401);
+            return;
+        }
     }
 
     const targets: Record<string, TargetData> = req.body.targets;
@@ -129,7 +171,6 @@ router.post("/", async (req: Request, res: Response) => {
         }
     }));
     console.log(responseEntries);
-    console.log(returnedStatusCodes);
 
     const targetResponseMap = Object.fromEntries(responseEntries);
     
@@ -142,9 +183,10 @@ router.post("/", async (req: Request, res: Response) => {
     res.send(targetResponseMap);
 });
 
-router.post('/main', async(req: Request, res: Response) => {
+router.post('/frontend', async(req: Request, res: Response) => {
     console.log("--------------------")
-    console.log("main request received");
+    console.log("frontend request received");
+    console.log(req.headers)
     console.log(req.body);
     res.status(200);
     res.send();
@@ -153,15 +195,8 @@ router.post('/main', async(req: Request, res: Response) => {
 router.post("/sql", async (req: Request, res: Response) => {
     console.log("--------------------")
     console.log("sql request received");
+    console.log(req.headers)
     console.log(req.body);
     res.status(200);
     res.send();
 })
-
-router.post("/deploy", async (req: Request, res: Response) => {
-    console.log("--------------------")
-    console.log("deploy request received");
-    console.log(req.body);
-    res.status(200);
-    res.send();
-});

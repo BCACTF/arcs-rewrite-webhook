@@ -99,18 +99,29 @@ export const deployHandler : HandlerFn = async (payload: Payload) => {
         } as HandlerReturn;
     }
 
+
+
     let response : Response = await fetch(TARGET_DEPLOY, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
+            "Authorization": "Bearer " + process.env.WEBHOOK_SERVER_AUTH_TOKEN,
         },
         body: JSON.stringify(payload),
     });
 
-    // TODO: Handle non-200 status codes better (probably on a case-by-case basis depending on response)
-    // Should all 200 codes be okay?
-
     if(!statusCodeOkay(response.status)) {
+        if(response.status === 401 || response.status === 400) {
+            const responseText = await response.text();
+            return {
+                status: "failure",
+                content: {
+                    reason: "DEPLOYHANDLER: " + responseText,
+                    statusCode: response.status,
+                }
+            }
+        }
+
         const responseJson = await response.json();
         return {
             status: "failure",
