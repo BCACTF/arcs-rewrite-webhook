@@ -64,6 +64,7 @@ const mapTargetEntry = (requestType: string, sendSuccess: HandlerName[], sendFai
             return [targetName, response];
         } catch (e) {
             sendFail.push(handlerName);
+            console.log(e);
             return [
                 targetName,
                 // may include parse issues, if there is a syntax error, ensure given handler is returning the proper format (json or text)
@@ -198,5 +199,5 @@ router.post("/sql", async (req: Request, res: Response) => {
     console.log(req.headers)
     console.log(req.body);
     res.status(200);
-    res.send();
+    res.send(req.body);
 })

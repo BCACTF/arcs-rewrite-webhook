@@ -1,16 +1,16 @@
+import { execQuery } from "../db/db";
 import { HandlerFn, HandlerReturn, OutboundResponse, Payload } from "./requestHandler";
-import { loadVars } from "../index";
 
 type SqlPayload = {
     _type: string;
+    query: string;
 }
 
 const isValidSqlPayload = (payload: Payload): payload is SqlPayload => {
-    return typeof payload._type === "string";
+    return typeof payload._type === "string" && typeof payload.query === "string";
 }
 
 export const sqlHandler : HandlerFn = async (payload: Payload) => {
-    const [TARGET_SQL] = loadVars(["TARGET_SQL"]);
     if(!isValidSqlPayload(payload)) {
         return {
             status: "failure",
@@ -21,13 +21,18 @@ export const sqlHandler : HandlerFn = async (payload: Payload) => {
         } as HandlerReturn
     };
 
-    let response : Response = await fetch(TARGET_SQL, {
+    const results = await execQuery(payload.query);
+    console.log(results);
+    // switch this to https if servers become secure:tm: with dns fjhdsklafh djsaklfhda
+    const fetchurllocal = `http://localhost:${process.env.PORT}/sql`
+    console.log(fetchurllocal);
+    let response : Response = await fetch(fetchurllocal, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer " + process.env.WEBHOOK_SERVER_AUTH_TOKEN,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(results),
     });
 
     if(response.status != 200) {

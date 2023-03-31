@@ -1,13 +1,40 @@
 import { HandlerFn, Payload } from "./requestHandler";
 import { loadVars } from "../index";
 
-// TODO --> Add fields and stuff once payload specs are finalized
-type FrontendPayload = {
+export type FrontendPayload = {
     _type: string;
+    name: string;
+    points: number;
+    desc: string;
+    solveCount: number;
+    categories: string[];
+    authors: string[];
+    hints: string[];
+    tags: string[];
+
+    links: any;
 }
-// TODO --> Update with actual payload specs once finalized
+
+const checkStringArray = (field: any): boolean => {
+    if(!Array.isArray(field)) { return false; }
+    
+    field.forEach((item) => {
+        if(typeof item !== 'string'){
+            return false;
+        }
+    })
+    
+    // currently accepts 0 length arrays
+    return true;
+    // return (field.length > 0) ? true : false;
+}
+
 const isValidFrontendPayload = (payload: Payload): payload is FrontendPayload => {
-    return typeof payload._type === "string";
+    let metadataValid = payload._type === "string" &&
+        typeof payload.name === "string" && typeof payload.points === "number" && typeof payload.desc === "string" && typeof payload.solveCount === "number" 
+        && checkStringArray(payload.categories) && checkStringArray(payload.authors) && checkStringArray(payload.hints) && checkStringArray(payload.tags)
+        
+    return metadataValid;
 }
 
 export const frontendHandler : HandlerFn = async (payload: Payload) => {
