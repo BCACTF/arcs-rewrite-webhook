@@ -1,7 +1,11 @@
-import { db } from "./connector"
 import QueryResultType, { QueryResponseError } from "./queries";
+
+import execChallengeQuery from "./tables/challenges/exec";
+import ChallengeQuery, { isValidChallengeQuery } from "./tables/challenges/queries";
+
 import execTeamQuery from "./tables/teams/exec";
 import TeamQuery, { isValidTeamQuery } from "./tables/teams/queries";
+
 import execUserQuery from "./tables/users/exec";
 import UserQuery, { isValidUserQuery } from "./tables/users/queries";
 
@@ -10,7 +14,7 @@ import UserQuery, { isValidUserQuery } from "./tables/users/queries";
 //     return client;
 // }
 
-type Query = TeamQuery | UserQuery;
+type Query = TeamQuery | UserQuery | ChallengeQuery;
 
 const isValidQuery = (rawQuery: unknown): rawQuery is Query => {
     if (typeof rawQuery !== "object" || rawQuery === null) return false;
@@ -24,6 +28,8 @@ const isValidQuery = (rawQuery: unknown): rawQuery is Query => {
             return isValidTeamQuery(query);
         case "user":
             return isValidUserQuery(query);
+        case "challenge":
+            return isValidChallengeQuery(query);
         default:
             return false;
     }
@@ -51,6 +57,7 @@ export async function execQuery(query: unknown): Promise<QueryResultType<unknown
     switch (query.section) {
         case "team": return await execTeamQuery(query);
         case "user": return await execUserQuery(query);
+        case "challenge": return await execChallengeQuery(query);
     }
 }
 
