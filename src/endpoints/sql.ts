@@ -7,7 +7,7 @@ type SqlPayload = {
 }
 
 const isValidSqlPayload = (payload: Payload): payload is SqlPayload => {
-    return typeof payload._type === "string" && typeof payload.query === "string";
+    return typeof payload._type === "string"
 }
 
 export const sqlHandler : HandlerFn = async (payload: Payload) => {
@@ -21,7 +21,7 @@ export const sqlHandler : HandlerFn = async (payload: Payload) => {
         } as HandlerReturn
     };
 
-    const results = await execQuery(payload.query);
+    const results = await execQuery(payload);
     console.log(results);
     // switch this to https if servers become secure:tm: with dns fjhdsklafh djsaklfhda
     const fetchurllocal = `http://localhost:${process.env.PORT}/sql`

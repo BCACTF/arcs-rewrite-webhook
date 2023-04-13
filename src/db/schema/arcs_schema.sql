@@ -11,11 +11,11 @@ CREATE TYPE challenge_type AS ENUM (
     'webex'
 );
 
-CREATE TYPE user_type AS ENUM (
-    'default',
-    'eligible',
-    'admin'
-);
+-- CREATE TYPE user_type AS ENUM (
+--     'default',
+--     'eligible',
+--     'admin'
+-- );
 
 CREATE TABLE challenges (
     id uuid PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
@@ -60,6 +60,18 @@ CREATE TABLE solve_attempts (
     updated_at timestamp(0) without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE solve_successes (
+    id uuid PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
+
+    attempt_id uuid NOT NULL,
+
+    user_id uuid NOT NULL,
+    challenge_id uuid NOT NULL,
+    team_id uuid NOT NULL,
+
+    solved_at timestamp(0) without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 
 CREATE TABLE team_stats (
     id uuid PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
@@ -74,9 +86,9 @@ CREATE TABLE teams (
     id uuid PRIMARY KEY NOT NULL DEFAULT uuid_generate_v4(),
     name citext NOT NULL UNIQUE,
 
-    description text,
+    description text NOT NULL,
 
-    score integer DEFAULT 0,
+    score integer DEFAULT 0 NOT NULL,
     last_solve timestamp(0) without time zone,
 
     eligible boolean DEFAULT false NOT NULL,
@@ -97,7 +109,9 @@ CREATE TABLE users (
     score integer DEFAULT 0,
     last_solve timestamp(0) without time zone,
 
-    type public.user_type DEFAULT 'default'::public.user_type NOT NULL,
+
+    eligible boolean DEFAULT false NOT NULL,
+    admin boolean DEFAULT false NOT NULL,
 
     hashed_password varchar(255) NOT NULL,
 
@@ -123,6 +137,13 @@ CREATE INDEX solves_chalid_idx ON solve_attempts USING btree (challenge_id);
 CREATE INDEX solves_teamid_idx ON solve_attempts USING btree (team_id);
 CREATE INDEX solves_userid_idx ON solve_attempts USING btree (user_id);
 
+
+CREATE INDEX solve_succ_attemptid_idx ON solve_successes USING btree (user_id);
+CREATE INDEX solve_succ_chalid_idx ON solve_successes USING btree (challenge_id);
+CREATE INDEX solve_succ_teamid_idx ON solve_successes USING btree (team_id);
+CREATE INDEX solve_succ_userid_idx ON solve_successes USING btree (user_id);
+
+
 CREATE INDEX teamstats_teamid_idx ON team_stats USING btree (team_id);
 
 CREATE UNIQUE INDEX user_name_idx ON users USING btree (name);
@@ -142,6 +163,9 @@ ALTER TABLE ONLY solve_attempts ADD
     CONSTRAINT fkey_u_teamid FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE;
 ALTER TABLE ONLY solve_attempts ADD
     CONSTRAINT fkey_u_userid FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY solve_successes ADD
+    CONSTRAINT fkey_attempt FOREIGN KEY (attempt_id) REFERENCES solve_attempts(id) ON DELETE CASCADE;
 
 ALTER TABLE ONLY team_stats ADD
     CONSTRAINT fkey_ts_teamid FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE;
