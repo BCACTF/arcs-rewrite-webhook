@@ -143,7 +143,7 @@ export const execUpdateTeamMeta = withTransaction(async (client, input: UpdateTe
 
     
     const hash = await confirmTeamPasswordValid(client, input.id, input.password);
-    const updatedHash = input.password === input.newPassword ? hash : await createHash(input.newPassword);
+    const updatedHash = input.password === input.newPassword || !input.newPassword ? hash : await createHash(input.newPassword);
 
     await client.query(updateQuery, [
         input.id,

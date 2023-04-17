@@ -21,7 +21,7 @@ export type UpdateTeam = {
     name: string;
     description: string;
 
-    newPassword: string;
+    newPassword: string | null;
 };
 
 export type GetTeam = {
