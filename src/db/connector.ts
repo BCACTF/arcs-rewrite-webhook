@@ -1,4 +1,4 @@
-import { Pool, PoolClient } from 'pg';
+import { Pool, PoolClient, types } from 'pg';
 import QueryResultType, { QueryResponseError } from './queries';
 
 const poolConfig = {
@@ -33,7 +33,6 @@ export const withTransaction = <I extends unknown[], S extends unknown>(
         return output;
     } catch (e) {
         client.query("ROLLBACK");
-
         if (e instanceof QueryResponseError) return {
             success: false,
             error: e,

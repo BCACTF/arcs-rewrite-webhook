@@ -30,11 +30,14 @@ type Authors = string[] | null;
 type Hints = string[] | null;
 type Categories = string[] | null;
 type Tags = string[];
-type Links = unknown;
+
+type LinkType = "nc" | "web" | "admin" | "static";
+type Links = Record<LinkType, string[]>;
 
 type SolveCount = number;
 type Visible = boolean;
 type SourceFolder = string;
+
 
 
 export {
@@ -42,7 +45,7 @@ export {
     
     Id,
     Name, Description, Points,
-    Authors, Hints, Categories, Tags, Links,
+    Authors, Hints, Categories, Tags, Links, LinkType,
     SolveCount, Visible, SourceFolder,
 
     QueryReturn,

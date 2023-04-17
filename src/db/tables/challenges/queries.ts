@@ -14,7 +14,7 @@ export type InsertChallenge = {
     hints: Chall.Hints;
     categories: Chall.Categories;
     tags: Chall.Tags;
-    links: unknown;
+    links: [Chall.LinkType, string][];
 
     visible: Chall.Visible | null;
     source_folder: Chall.SourceFolder;
@@ -41,6 +41,24 @@ const isStringArray = (val: unknown): val is string[] => {
     return true;
 }
 
+const isValidInputLinkTyple = (val: unknown): val is [Chall.LinkType, string] => {
+    console.log("cp1:",{val});
+    if (!Array.isArray(val)) return false;
+    if (val.length !== 2) return false;
+    const [type, url] = val;
+    console.log("cp2:",{val});
+
+    if (typeof url !== "string") return false;
+    const nc = type === "nc";
+    const web = type === "web";
+    const admin = type === "admin";
+    const is_static = type === "static";
+    if (!nc && !web && !admin && !is_static) return false;
+
+    console.log("cp3:",{val});
+    return true;
+}
+
 export const isValidChallengeQuery = (rawQuery: unknown): rawQuery is ChallengeQuery => {
     if (typeof rawQuery !== "object" || rawQuery === null) return false;
 
@@ -57,6 +75,7 @@ export const isValidChallengeQuery = (rawQuery: unknown): rawQuery is ChallengeQ
                 description, flag, points,
                 authors, hints, categories, tags,
                 visible, source_folder,
+                links,
             } = query;
             if (typeof name !== "string") return false;
             if (typeof description !== "string") return false;
@@ -71,6 +90,8 @@ export const isValidChallengeQuery = (rawQuery: unknown): rawQuery is ChallengeQ
             if (visible !== null && typeof visible !== "boolean") return false;
             if (typeof source_folder !== "string") return false;
 
+            if (!Array.isArray(links) || !links.every(isValidInputLinkTyple)) return false;
+            
             return true;
         }
         case "get": {

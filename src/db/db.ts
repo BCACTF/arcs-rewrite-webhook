@@ -2,6 +2,8 @@ import QueryResultType, { QueryResponseError } from "./queries";
 
 import execChallengeQuery from "./tables/challenges/exec";
 import ChallengeQuery, { isValidChallengeQuery } from "./tables/challenges/queries";
+import execSolveQuery from "./tables/solves/exec";
+import SolveQuery, { isValidSolveQuery } from "./tables/solves/queries";
 
 import execTeamQuery from "./tables/teams/exec";
 import TeamQuery, { isValidTeamQuery } from "./tables/teams/queries";
@@ -14,7 +16,7 @@ import UserQuery, { isValidUserQuery } from "./tables/users/queries";
 //     return client;
 // }
 
-type Query = TeamQuery | UserQuery | ChallengeQuery;
+type Query = TeamQuery | UserQuery | ChallengeQuery | SolveQuery;
 
 const isValidQuery = (rawQuery: unknown): rawQuery is Query => {
     if (typeof rawQuery !== "object" || rawQuery === null) return false;
@@ -30,6 +32,8 @@ const isValidQuery = (rawQuery: unknown): rawQuery is Query => {
             return isValidUserQuery(query);
         case "challenge":
             return isValidChallengeQuery(query);
+        case "solve":
+            return isValidSolveQuery(query);
         default:
             return false;
     }
@@ -58,6 +62,7 @@ export async function execQuery(query: unknown): Promise<QueryResultType<unknown
         case "team": return await execTeamQuery(query);
         case "user": return await execUserQuery(query);
         case "challenge": return await execChallengeQuery(query);
+        case "solve": return await execSolveQuery(query);
     }
 }
 
