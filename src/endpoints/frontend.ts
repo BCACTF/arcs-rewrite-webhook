@@ -1,45 +1,27 @@
-import { HandlerFn, Payload } from "./requestHandler";
+import { HandlerFn, Payload, uuid } from "./requestHandler";
 import { loadVars } from "../index";
+import { isValidUUID } from "./deploy";
 
 export type FrontendPayload = {
     _type: string;
-    name: string;
-    points: number;
-    desc: string;
-    solveCount: number;
-    categories: string[];
-    authors: string[];
-    hints: string[];
-    tags: string[];
-
-    links: any;
-}
-
-const checkStringArray = (field: any): boolean => {
-    if(!Array.isArray(field)) { return false; }
-    
-    field.forEach((item) => {
-        if(typeof item !== 'string'){
-            return false;
-        }
-    })
-    
-    // currently accepts 0 length arrays
-    return true;
-    // return (field.length > 0) ? true : false;
+    chall_id: uuid;
+    poll_id: uuid;
 }
 
 const isValidFrontendPayload = (payload: Payload): payload is FrontendPayload => {
-    let metadataValid = payload._type === "string" &&
-        typeof payload.name === "string" && typeof payload.points === "number" && typeof payload.desc === "string" && typeof payload.solveCount === "number" 
-        && checkStringArray(payload.categories) && checkStringArray(payload.authors) && checkStringArray(payload.hints) && checkStringArray(payload.tags)
-        
+    let metadataValid = (typeof payload._type === "string") &&
+        isValidUUID(payload.chall_id) && isValidUUID(payload.poll_id);
+
+    console.log()
     return metadataValid;
 }
 
 export const frontendHandler : HandlerFn = async (payload: Payload) => {
+    console.log("JFUEOBWOFBEHWOIFBDJSLBFHDJSBFHJDKS");
     const [TARGET_FRONTEND] = loadVars(["TARGET_FRONTEND"]);
     if(!isValidFrontendPayload(payload)) {
+        console.log("FRONTEND PAYLOAD IS INVALID IT BREAKS HERE");
+        console.log(payload);
         return {
             status: "failure",
             content: {
@@ -49,17 +31,36 @@ export const frontendHandler : HandlerFn = async (payload: Payload) => {
         };
     }
 
-    let response : Response = await fetch(TARGET_FRONTEND, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + process.env.WEBHOOK_SERVER_AUTH_TOKEN,
-        },
-        body: JSON.stringify(payload),
-    });
+    if(payload._type === "SyncSuccessDeploy") {
+        console.log("forwarding the request woo");
+        let response : Response = await fetch(TARGET_FRONTEND + "/api/chall-deploy", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + process.env.WEBHOOK_SERVER_AUTH_TOKEN,
+            },
+            body: JSON.stringify(payload),
+        });
+        console.log("forwardedfdanthe request woo");
+        return {
+            status: "success",
+            content: response,
+        }
 
-    return {
-        status: "success",
-        content: response,
-    };
+    } else {
+        console.log("alternate frontend thing idk");
+        let response : Response = await fetch(TARGET_FRONTEND, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + process.env.WEBHOOK_SERVER_AUTH_TOKEN,
+            },
+            body: JSON.stringify(payload),
+        });
+        console.log("alternate frontend thing fdasjhkfbdsauofbvyrewuif");
+        return {
+            status: "success",
+            content: response,
+        };
+    }
 };

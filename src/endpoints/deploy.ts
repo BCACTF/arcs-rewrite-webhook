@@ -5,61 +5,41 @@ type DeployPayload = {
     /** Type of request going **/
     _type: string;
     deploy_identifier: DeployIdentifier;
-
-    // NOTE: Will this still be required after we start sending challenge ids instead of challenge names?
     chall_name: string;
-    // NOTE: Why exactly is this here? Shouldn't this be in the repo? Or is it for one-time edits? (same for `chall_points`)
-    chall_desc?: string;
-
-    chall_points?: number; 
-
-    // TODO: Document what this is for. Whether that's in this file, or in some central place (better), it will make development easier. 
-    chall_metadata?: string;
 }
 
 type DeployIdentifier = uuid | string;
 
 /// Checks if a number is valid in decimal (i.e. no hex, octal, etc. and !NaN)
-const isValidNumber = (n: unknown): boolean => {
-    switch (typeof n) {
-        case 'number':
-            return true;
-        case 'string':
-            return !isNaN(parseInt(n));
-        default:
-            return false;
-    }
-};
+// const isValidNumber = (n: unknown): boolean => {
+//     switch (typeof n) {
+//         case 'number':
+//             return true;
+//         case 'string':
+//             return !isNaN(parseInt(n));
+//         default:
+//             return false;
+//     }
+// };
 
-const isValidUUID = (uuid: unknown): boolean => typeof uuid === 'string' && isUuid(uuid);
+export const isValidUUID = (uuid: unknown): boolean => typeof uuid === 'string' && isUuid(uuid);
 
 // TODO -- double check all validation for undefined strings
-const isUndefinedString = (str: unknown): str is string | undefined => str === undefined || typeof str === "string";
+// const isUndefinedString = (str: unknown): str is string | undefined => str === undefined || typeof str === "string";
 
 const isValidDeployPayload = (payload: Payload): payload is DeployPayload => {
     const {
         _type,
         deploy_identifier,
-        chall_name: name,
-        chall_points: points,
-        chall_desc: desc,
-        chall_meta: meta,
+        chall_name,
     } = payload
 
     const idsValid = isValidUUID(deploy_identifier);
     // NOTE: This doesn't check that the payload type is actually a type of deploy payload. Not sure if that's required though.
-    const payloadValid = typeof _type === "string" && typeof name === "string";
+    const payloadValid = typeof _type === "string" && typeof chall_name === "string";
     const requiredValid = idsValid && payloadValid;
 
-
-    const pointsValid = points === undefined || isValidNumber(points);
-
-    // if undefined, then request does not include that data
-    const descValid = isUndefinedString(desc);
-    const metaValid = isUndefinedString(meta);
-    const stringsValid = descValid && metaValid;
-
-    return requiredValid && pointsValid && stringsValid;
+    return requiredValid;
 };
 
 export const deployHandler : HandlerFn = async (payload: Payload) => {

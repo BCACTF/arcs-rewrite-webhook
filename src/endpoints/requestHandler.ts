@@ -100,12 +100,15 @@ const returnErrReq = (res: Response, message: string, status: number) => {
 
 // TODO: add a check to see if the server is running or not
 router.post("/", async (req: Request, res: Response) => {
+    console.log({ body: req.body });
     if(typeof req.body.targets === 'undefined' || typeof req.body._type === 'undefined') {
+        console.log("Malformed request body: ", req.body);
         returnErrReq(res, "Malformed Request Body", 400);
         return;
     }
 
     if(typeof req.headers["authorization"] === 'undefined') {
+        console.log("Recieved a request without an auth header");
         returnErrReq(res, "Unauthorized", 401);
         return;
     } else {
@@ -113,6 +116,7 @@ router.post("/", async (req: Request, res: Response) => {
         const serverTokens = [process.env.DEPLOY_SERVER_AUTH_TOKEN, process.env.FRONTEND_SERVER_AUTH_TOKEN];
 
         if(typeof authHeader === 'undefined') {
+            console.log("Recieved badly formatted auth header:", req.headers.authorization);
             returnErrReq(res, "Unauthorized", 401);
             return;
         }
