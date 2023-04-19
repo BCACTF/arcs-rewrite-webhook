@@ -1,7 +1,6 @@
 import { HandlerFn, HandlerReturn, Payload, statusCodeOkay, uuid, isUuid } from "./requestHandler";
 import { loadVars } from "../index";
 
-///
 type DeployPayload = {
     /** Type of request going **/
     _type: string;
@@ -18,10 +17,7 @@ type DeployPayload = {
     chall_metadata?: string;
 }
 
-type DeployIdentifier = {
-    chall_id: uuid;    
-    deploy_race_lock_id: uuid;
-} | string;
+type DeployIdentifier = uuid | string;
 
 /// Checks if a number is valid in decimal (i.e. no hex, octal, etc. and !NaN)
 const isValidNumber = (n: unknown): boolean => {
@@ -40,26 +36,6 @@ const isValidUUID = (uuid: unknown): boolean => typeof uuid === 'string' && isUu
 // TODO -- double check all validation for undefined strings
 const isUndefinedString = (str: unknown): str is string | undefined => str === undefined || typeof str === "string";
 
-const assertValidDeployIdentifier = (identifiers: unknown): identifiers is DeployIdentifier => {
-    if (typeof identifiers === "string") {
-        const polling_id_split = identifiers.split('.');
-        console.log(polling_id_split);
-        return isValidUUID(polling_id_split[0]) && isValidUUID(polling_id_split[1]);
-    } else if (typeof identifiers === "object" && identifiers !== null) {
-        // TODO: Make this more efficient but also type-safe.
-        let relevantEntries = Object.entries(identifiers).flatMap(
-            ([key, value]) => key === "chall_id" || key === "deploy_race_lock_id" ? [[key, value] as const] : [],
-        );
-        let chall_id = relevantEntries.find(([key]) => key === "chall_id")?.[1];
-        let race_lock_id = relevantEntries.find(([key]) => key === "deploy_race_lock_id")?.[1];
-        return isValidUUID(chall_id) && isValidUUID(race_lock_id);
-    } else {
-        return false;
-    }
-};
-
-
-
 const isValidDeployPayload = (payload: Payload): payload is DeployPayload => {
     const {
         _type,
@@ -70,7 +46,7 @@ const isValidDeployPayload = (payload: Payload): payload is DeployPayload => {
         chall_meta: meta,
     } = payload
 
-    const idsValid = assertValidDeployIdentifier(deploy_identifier);
+    const idsValid = isValidUUID(deploy_identifier);
     // NOTE: This doesn't check that the payload type is actually a type of deploy payload. Not sure if that's required though.
     const payloadValid = typeof _type === "string" && typeof name === "string";
     const requiredValid = idsValid && payloadValid;
