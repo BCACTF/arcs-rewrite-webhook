@@ -1,5 +1,6 @@
-import { HandlerFn, HandlerReturn, Payload, statusCodeOkay, uuid, isUuid } from "./requestHandler";
+import { Handler, Payload, statusCodeOkay, uuid, isUuid } from "./requestHandler";
 import { loadVars } from "../index";
+import * as log from '../logging';
 
 type DeployPayload = {
     /** Type of request going **/
@@ -42,17 +43,18 @@ const isValidDeployPayload = (payload: Payload): payload is DeployPayload => {
     return requiredValid;
 };
 
-export const deployHandler : HandlerFn = async (payload: Payload) => {
+export const deployHandler: Handler.Fn = async (payload: Payload) => {
     const [TARGET_DEPLOY] = loadVars(["TARGET_DEPLOY"]);
     if(!isValidDeployPayload(payload)) {
-        console.log("THIS INVALID")
+        log.warn`Invalid deploy payload recieved`;
+        log.debug`Payload: ${payload}`;
         return {
             status: "failure",
             content: {
                 reason: "DEPLOYHANDLER: Payload `" + JSON.stringify(payload) + "` is not valid",
                 statusCode: 400,
             },
-        } as HandlerReturn;
+        };
     }
 
 
@@ -82,7 +84,7 @@ export const deployHandler : HandlerFn = async (payload: Payload) => {
         return {
             status: "failure",
             content: {
-                reason: responseJson.reason || "no_reason_returned",
+                reason: String(responseJson.reason) || "no_reason_returned",
                 statusCode: response.status,
             },
         };
@@ -90,6 +92,11 @@ export const deployHandler : HandlerFn = async (payload: Payload) => {
 
     return {
         status: "success",
-        content: response,
+        content: {
+            data: await response.json(),
+            statusCode: response.status,
+            status: response.statusText,
+            handlerName: "deploy",
+        },
     };
 };

@@ -37,7 +37,6 @@ const getSolvesByPred = async (
     client: PoolClient,
     predicate: { query: string, value: unknown },
 ): Promise<DbSolveMeta[]> => {
-    console.trace("SPOT 1");
     const getSolvesQuery = `
     SELECT
         solve_attempts.id,
@@ -55,7 +54,6 @@ const getSolvesByPred = async (
         getSolvesQuery,
         predicate.value ? [predicate.value] : [],
     );
-    console.trace("SPOT 2");
 
     return getSolvesRes.rows.map(metaFromRow);
 };

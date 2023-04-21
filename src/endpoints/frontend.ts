@@ -1,4 +1,4 @@
-import { HandlerFn, Payload, uuid } from "./requestHandler";
+import { Handler, Payload, uuid } from "./requestHandler";
 import { loadVars } from "../index";
 import { isValidUUID } from "./deploy";
 
@@ -16,7 +16,7 @@ const isValidFrontendPayload = (payload: Payload): payload is FrontendPayload =>
     return metadataValid;
 }
 
-export const frontendHandler : HandlerFn = async (payload: Payload) => {
+export const frontendHandler : Handler.Fn = async (payload: Payload) => {
     console.log("JFUEOBWOFBEHWOIFBDJSLBFHDJSBFHJDKS");
     const [TARGET_FRONTEND] = loadVars(["TARGET_FRONTEND"]);
     if(!isValidFrontendPayload(payload)) {
@@ -44,7 +44,12 @@ export const frontendHandler : HandlerFn = async (payload: Payload) => {
         console.log("forwardedfdanthe request woo");
         return {
             status: "success",
-            content: response,
+            content: {
+                data: await response.json(),
+                handlerName: "frontend",
+                status: response.statusText,
+                statusCode: response.status,
+            },
         }
 
     } else {
@@ -60,7 +65,12 @@ export const frontendHandler : HandlerFn = async (payload: Payload) => {
         console.log("alternate frontend thing fdasjhkfbdsauofbvyrewuif");
         return {
             status: "success",
-            content: response,
+            content: {
+                data: await response.json(),
+                handlerName: "frontend",
+                status: response.statusText,
+                statusCode: response.status,
+            },
         };
     }
 };

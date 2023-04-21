@@ -1,5 +1,5 @@
 import { execQuery } from "../db/db";
-import { HandlerFn, HandlerReturn, OutboundResponse, Payload } from "./requestHandler";
+import { Handler, Payload } from "./requestHandler";
 
 type SqlPayload = {
     _type: string;
@@ -10,7 +10,7 @@ const isValidSqlPayload = (payload: Payload): payload is SqlPayload => {
     return typeof payload._type === "string"
 }
 
-export const sqlHandler : HandlerFn = async (payload: Payload) => {
+export const sqlHandler: Handler.Fn = async (payload: Payload) => {
     if(!isValidSqlPayload(payload)) {
         return {
             status: "failure",
@@ -18,35 +18,28 @@ export const sqlHandler : HandlerFn = async (payload: Payload) => {
                 reason: "SQLHANDLER: Payload `" + JSON.stringify(payload) + "` is not valid",
                 statusCode: 400,
             },
-        } as HandlerReturn
+        };
     };
 
-    const results = await execQuery(payload);
-    console.log(results);
-    // switch this to https if servers become secure:tm: with dns fjhdsklafh djsaklfhda
-    const fetchurllocal = `http://localhost:${process.env.PORT}/sql`
-    console.log(fetchurllocal);
-    let response : Response = await fetch(fetchurllocal, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + process.env.WEBHOOK_SERVER_AUTH_TOKEN,
-        },
-        body: JSON.stringify(results),
-    });
+    const queryResult = await execQuery(payload);
 
-    if(response.status != 200) {
+    if (!queryResult.success) {
         return {
             status: "failure",
             content: {
-                reason: "SQL endpoint returned non-200 status code",
-                statusCode: response.status,
+                reason: queryResult.error.message,
+                statusCode: queryResult.error.getStatusCode(),
             },
-        } as HandlerReturn;
+        };
+    } else {
+        return {
+            status: "success",
+            content: {
+                data: JSON.stringify(queryResult.output),
+                handlerName: "sql",
+                status: "Sql Query Executed Successfully",
+                statusCode: 200,
+            },
+        };
     }
-
-    return {
-        status: "success",
-        content: response as unknown as OutboundResponse,
-    } as HandlerReturn;
 };

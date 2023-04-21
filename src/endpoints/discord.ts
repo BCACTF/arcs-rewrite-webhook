@@ -1,4 +1,4 @@
-import { Payload, HandlerFn, OutboundResponse, HandlerReturn, statusCodeOkay } from './requestHandler';
+import { Payload, Handler, statusCodeOkay } from './requestHandler';
 import { loadVars } from '../index';
 
 enum Urgency {
@@ -61,7 +61,7 @@ const formatMessage = (urgency: Urgency, pings: string[], content: string) => [
     content,
 ].join('\n');
 
-export const discordHandler: HandlerFn = async (payload: Payload) => {
+export const discordHandler: Handler.Fn = async (payload: Payload) => {
     if (!isValidDiscordPayload(payload)) return {
         status: "failure",
         content: {
@@ -103,6 +103,11 @@ export const discordHandler: HandlerFn = async (payload: Payload) => {
 
     return {
         status: "success",
-        content: response
+        content: {
+            handlerName: "discord",
+            data: JSON.stringify(await response.json()),
+            statusCode: response.status,
+            status: "Message Sent Successfully",
+        },
     };
 };
