@@ -5,6 +5,7 @@ import { validate as isValidUUID } from "uuid";
 
 import * as log from '../logging';
 import { loadVars } from '..';
+import { idLogWrap } from '../fast-req-id';
 
 // handlers for each target service that we recognize
 import { discordHandler } from './discord';
@@ -102,8 +103,20 @@ export const router: Router = express.Router();
 const mapTargetEntry = async (
     requestType: string,
     targetName: string,
-    targetData: TargetData,
+    targetData: unknown,
 ): Promise<Handler.Output> => {
+    if (typeof targetData !== 'object' || targetData === null || Array.isArray(targetData)) {
+        log.error`The ${targetName} payload was of invalid type ${targetData === null ? 'null' : typeof targetData}`;
+        log.debug`Payload recieved: ${targetData}`;
+        return {
+            status: "failure", 
+            content: {
+                statusCode: 400, 
+                reason: `Each target must have an object data payload. '${targetName}' recieved a '${targetData === null ? 'null' : typeof targetData}'.`,
+            },
+        };
+    } 
+
     const payload = { ...targetData, _type: requestType };
     const handlerName = targetName.toUpperCase();
 
@@ -137,13 +150,13 @@ const mapTargetEntry = async (
 
 
 // TODO: add a check to see if the server is running or not
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", idLogWrap(async (req: Request, res: Response) => {
     log.info`Main server post request recieved from ${req.ip}`;
     
     //
     // Basic payload validation
     // 
-    if(typeof req.body.targets === 'undefined' || typeof req.body._type === 'undefined') {
+    if(typeof req.body.targets !== 'object' || req.body.targets === null || typeof req.body._type !== 'string') {
         log.warn`Malformed request body: ${req.body}`;
         returnErrReq(res, "Malformed Request Body", 400);
         return;
@@ -192,7 +205,7 @@ router.post("/", async (req: Request, res: Response) => {
     //
     // Setting up for handling
     // 
-    const targets: Record<string, TargetData> = req.body.targets;
+    const targets: Record<string, unknown> = req.body.targets;
     const requestType: string = req.body._type;
     const targetEntries = Object.entries(targets);
     
@@ -219,7 +232,7 @@ router.post("/", async (req: Request, res: Response) => {
         if(response.status === 'success') {
             okHandlers.push(targetName);
             const data = response.content.data;
-            log.debug`Handler success: ${data}`;
+            log.debug`Handler ${targetName} success`;
             try {
                 return [targetName, JSON.parse(data)] as const;
             } catch (e) {
@@ -229,7 +242,6 @@ router.post("/", async (req: Request, res: Response) => {
         } else {
             erHandlers.push([targetName, response.content.statusCode]);
             log.warn`Handler ${targetName} failed.`;
-            log.debug`Failed handler: ${targetName} - response: ${response}`;
             return [targetName, response.content] as const;
         }
     }));
@@ -249,7 +261,6 @@ router.post("/", async (req: Request, res: Response) => {
         res.statusMessage = message; 
         res.status(statusCode);
         res.send(targetResponseMap);
-        return;
     } else {
         // TODO --> notify if any requests got dropped in the process of evaluating the targets     
         log.info`All handlers succeeded`;
@@ -261,11 +272,12 @@ router.post("/", async (req: Request, res: Response) => {
         res.status(200);
         res.send(targetResponseMap);
     }
-});
+
+}));
 
 
 const tryIntParse = (str: string | undefined) => str && (parseInt(str) || str);
-router.post('/frontend', (req: Request, res: Response) => {
+router.post('/frontend', idLogWrap((req: Request, res: Response) => {
     log.info`Frontend mirror request recieved.`;
 
     log.debug`content-length: ${tryIntParse(req.headers['content-length'])}; content-type: ${req.headers['content-type']}`;
@@ -273,9 +285,9 @@ router.post('/frontend', (req: Request, res: Response) => {
 
     res.status(200);
     res.send();
-});
+}));
 
-router.post("/sql", (req: Request, res: Response) => {
+router.post("/sql", idLogWrap((req: Request, res: Response) => {
     log.info`SQL mirror request recieved.`;
     
     log.debug`content-length: ${tryIntParse(req.headers['content-length'])}; content-type: ${req.headers['content-type']}`;
@@ -285,4 +297,4 @@ router.post("/sql", (req: Request, res: Response) => {
 
     res.status(200);
     res.send(req.body);
-});
+}));

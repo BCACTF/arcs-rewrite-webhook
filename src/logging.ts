@@ -1,4 +1,5 @@
 import { inspect } from 'util';
+import getReqId from './fast-req-id';
 
 
 interface StackFrame {
@@ -11,6 +12,16 @@ interface StackFrame {
 }
 
 const prefix = () => process.env.LOGGING_PREFIX_STRIP ?? "";
+const formatPath = (pathUnstripped: string) => {
+    const pathRaw = pathUnstripped;
+
+    if (pathRaw.startsWith(prefix())) {
+        const unprefixed = pathUnstripped.slice(prefix().length).replace(/^\//, "");
+        return `./${unprefixed}`;
+    } else {
+        return pathRaw;
+    }
+}
 
 
 const anonFnStackTraceLinkToStackFrame = (line: string): StackFrame | null => {
@@ -22,15 +33,14 @@ const anonFnStackTraceLinkToStackFrame = (line: string): StackFrame | null => {
     const [lineRaw, colRaw] = [posRaw[0] ? parseInt(posRaw[0].slice(1)) : undefined, posRaw[1] ? parseInt(posRaw[1].slice(1)) : undefined] as const;
     const pos = lineRaw && colRaw ? [lineRaw, colRaw] as [number, number] : undefined;
 
-    const pathUnstripped = match[2];
-    const path = pathUnstripped.startsWith(prefix()) ? pathUnstripped.slice(prefix().length) : pathUnstripped;
+    const pathUnstripped = match[2];formatPath(match[2])
 
     return {
         orig: line,
         name: "<anonymous>",
         aliasName: undefined,
         pathPrefix: match[1],
-        path,
+        path: formatPath(match[2]),
         pos,
     }
 }
@@ -41,12 +51,11 @@ const stackTraceLineToStackFrame = (line: string): StackFrame | null => {
     const name = match[3] ?? match[1] ?? "<anonymous>";
     const aliasName = match[5];
     const pathPrefix = match[6];
-    const pathUnstripped = match[7]?.trim();
     const posRaw = [match[8], match[9]];
     const [lineRaw, colRaw] = [posRaw[0] ? parseInt(posRaw[0].slice(1)) : undefined, posRaw[1] ? parseInt(posRaw[1].slice(1)) : undefined] as const;
     const pos = lineRaw && colRaw ? [lineRaw, colRaw] as [number, number] : undefined;
 
-    const path = pathUnstripped.startsWith(prefix()) ? pathUnstripped.slice(prefix().length) : pathUnstripped;
+    const path = formatPath(match[7]);
 
     return {
         orig: line,
@@ -67,6 +76,7 @@ enum ColorCode {
     FUNC_NAME = "38;5;47",
     FUNC_PATH = "38;5;159",
     LINE_COLN = "38;5;159",
+    REQUES_ID = "34",
     RESET = "0",
 }
 
@@ -109,19 +119,17 @@ const loggingPrefix = (stack: StackFrame | null, level: string) => {
 
     const nameNoColor = stack?.aliasName ?? stack?.name ?? "<unknown>";
     const pathNoColor = stack?.path ?? "<unknown_path>";
-    const locationNoColor = stack?.pos ? `:${stack.pos[0]}:${stack.pos[1]}`.padEnd(8, " ") : "";
+    const locationNoColor = stack?.pos ? `:${stack.pos[0]}:${stack.pos[1]}` : "";
 
     const identifiers = `${
-        withColor(ColorCode.FUNC_NAME, nameNoColor)
-    } ${
-        withColor(ColorCode.FUNC_PATH, pathNoColor)
-    }${
-        withColor(ColorCode.LINE_COLN, locationNoColor)
-    }`;
+        withColor(ColorCode.FUNC_NAME, nameNoColor.padStart(16))
+    } @ ${withColor(ColorCode.FUNC_PATH, `${pathNoColor}${locationNoColor}`.padEnd(50))}`;
 
-    return `${time} | ${identifiers}; ${level} - `;
+    const idRaw = getReqId();
+    const idStr = idRaw ? withColor(ColorCode.REQUES_ID, `<${idRaw}> `) : "";
+
+    return `${time} -> ${identifiers}| ${level} - ${idStr}`;
 };
-
 
 const inspectValue = (v: unknown) => inspect(v, { breakLength: 60, depth: 8, colors: true });
 const logText = (strings: TemplateStringsArray, other: unknown[]) => {

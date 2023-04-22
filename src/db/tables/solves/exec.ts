@@ -47,9 +47,6 @@ const getSolvesByPred = async (
     LEFT JOIN solve_successes ON solve_attempts.id = attempt_id
     WHERE ${predicate.query} GROUP BY solve_attempts.id ORDER BY timestamp;`;
 
-    console.log(getSolvesQuery);
-    console.log(predicate.value ? [predicate.value] : []);
-
     const getSolvesRes = await client.query<SolveRow, [unknown] | []>(
         getSolvesQuery,
         predicate.value ? [predicate.value] : [],
