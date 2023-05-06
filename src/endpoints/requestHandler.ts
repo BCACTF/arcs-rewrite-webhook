@@ -12,6 +12,7 @@ import { discordHandler } from './discord';
 import { sqlHandler } from './sql';
 import { deployHandler } from './deploy';
 import { frontendHandler } from './frontend';
+import { checkHeadersValid } from '../security/incoming-req';
 
 export type Result<T, E> = {
     status: "success",
@@ -72,11 +73,6 @@ export const statusCodeInvReq = (code: number): boolean => {
 };
 export const statusCodeSerErr = (code: number): boolean => {
     return code >= 500 && code < 600;
-};
-const returnErrReq = (res: Response, message: string, status: number) => {
-    res.statusMessage = message;
-    res.status(status);
-    res.send({});
 };
 
 
@@ -153,55 +149,8 @@ const mapTargetEntry = async (
 router.post("/", idLogWrap(async (req: Request, res: Response) => {
     log.info`Main server post request recieved from ${req.ip}`;
     
-    //
-    // Basic payload validation
-    // 
-    if(typeof req.body.targets !== 'object' || req.body.targets === null || typeof req.body._type !== 'string') {
-        log.warn`Malformed request body: ${req.body}`;
-        returnErrReq(res, "Malformed Request Body", 400);
-        return;
-    }
-
-
-    //
-    // Checking auth header format
-    // 
-    if(typeof req.headers["authorization"] === 'undefined') {
-        log.secWarn`Recieved a request without an auth header: ${req.headers}`;
-        returnErrReq(res, "Unauthorized", 401);
-        return;
-    }
-
-    const authHeader = req.headers["authorization"].split(" ")[1];
-    const envTokens = ["DEPLOY_SERVER_AUTH_TOKEN", "FRONTEND_SERVER_AUTH_TOKEN"];
-    const serverTokens = loadVars(envTokens);
-
-    if(typeof authHeader === 'undefined') {
-        log.secWarn`Recieved badly formatted auth header: ${req.headers.authorization}`;
-        returnErrReq(res, "Unauthorized", 401);
-        return;
-    }
-
-    //
-    // Checking value of the auth header
-    // 
-    let hashedAuthHeader = crypto.createHash('md5').update(authHeader).digest('hex');
-    let hashedServerTokens = serverTokens.map(token => crypto.createHash('md5').update(token).digest('hex'));
-
-    let authorized = hashedServerTokens.map((token, idx) => [
-        crypto.timingSafeEqual(Buffer.from(token), Buffer.from(hashedAuthHeader)),
-        envTokens[idx],
-    ] as const);
-
-    if(authorized.every(([bool, _]) => !bool)) {
-        log.secWarn`Auth header did not match deploy or frontend token.`;
-        returnErrReq(res, "Unauthorized", 401);
-        return;
-    }
-    const matchedAuthEnvVars = authorized.filter(v => v[0]).map(v => v[1]);
-    log.debug`Auth header matched ${matchedAuthEnvVars}`;
-
-
+    if (!checkHeadersValid(req, res)) return;
+    
     //
     // Setting up for handling
     // 

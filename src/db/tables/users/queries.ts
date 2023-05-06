@@ -1,16 +1,24 @@
+import { Auth } from "./types";
+
 export type CreateNewUser = {
     __tag: "create";
 
     email: string;
     name: string;
-    password: string;
+    auth: Auth;
     eligible: boolean;
+};
+
+export type CheckUserAuth = {
+    __tag: "auth";
+    id: string;
+    auth: Auth;
 };
 
 export type UpdateUserNamePass = {
     __tag: "update";
     id: string;
-    password: string;
+    auth: Auth;
 
     name: string;
     newPassword: string | null;
@@ -21,7 +29,7 @@ export type UpdateUserNamePass = {
 export type UserJoinTeam = {
     __tag: "join";
     id: string;
-    password: string;
+    auth: Auth;
 
     teamId: string;
     teamPassword: string;
@@ -35,13 +43,29 @@ export type GetAllUsers = {
     __tag: "get_all";
 };
 
-type InnerUserQuery = CreateNewUser | UpdateUserNamePass | UserJoinTeam | GetUser | GetAllUsers;
+type InnerUserQuery = CreateNewUser | CheckUserAuth | UpdateUserNamePass | UserJoinTeam | GetUser | GetAllUsers;
 
 type UserQuery = {
     section: "user";
     query: InnerUserQuery;
 };
 
+const authIsValid = (rawAuth: unknown): rawAuth is Auth => {
+    if (typeof rawAuth !== "object" || rawAuth === null) return false;
+
+    const auth = rawAuth as Record<string, unknown>;
+
+    const { __type } = auth;
+
+    switch (__type) {
+        case "pass":
+            return typeof auth.password === "string";
+        case "oauth":
+            return typeof auth.sub === "string" && typeof auth.provider === "string" && typeof auth.trustedClientAuth === "string";
+        default:
+            return false;
+    }
+};
 
 export const isValidUserQuery = (rawQuery: unknown): rawQuery is InnerUserQuery => {
     if (typeof rawQuery !== "object" || rawQuery === null) return false;
@@ -54,18 +78,24 @@ export const isValidUserQuery = (rawQuery: unknown): rawQuery is InnerUserQuery 
 
     switch (__tag) {
         case "create": {
-            const { email, name, password, eligible } = query;
+            const { email, name, auth, eligible } = query;
             if (typeof email !== "string") return false;
             if (typeof name !== "string") return false;
-            if (typeof password !== "string") return false;
+            if (!authIsValid(auth)) return false;
             if (typeof eligible !== "boolean") return false;
 
             return true;
         }
-        case "update": {
-            const { id, password, name, newPassword, eligible } = query;
+        case "auth": {
+            const { id, auth, name, newPassword, eligible } = query;
             if (typeof id !== "string") return false;
-            if (typeof password !== "string") return false;
+            if (!authIsValid(auth)) return false;
+            return true;
+        }
+        case "update": {
+            const { id, auth, name, newPassword, eligible } = query;
+            if (typeof id !== "string") return false;
+            if (!authIsValid(auth)) return false;
 
             
             if (typeof name !== "string") return false;
@@ -75,9 +105,9 @@ export const isValidUserQuery = (rawQuery: unknown): rawQuery is InnerUserQuery 
             return true;
         }
         case "join": {
-            const { id, password, teamId, teamPassword } = query;
+            const { id, auth, teamId, teamPassword } = query;
             if (typeof id !== "string") return false;
-            if (typeof password !== "string") return false;
+            if (!authIsValid(auth)) return false;
 
             if (typeof teamId !== "string") return false;
             if (typeof teamPassword !== "string") return false;

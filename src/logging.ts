@@ -122,7 +122,7 @@ const loggingPrefix = (stack: StackFrame | null, level: string) => {
     const locationNoColor = stack?.pos ? `:${stack.pos[0]}:${stack.pos[1]}` : "";
 
     const identifiers = `${
-        withColor(ColorCode.FUNC_NAME, nameNoColor.padStart(16))
+        withColor(ColorCode.FUNC_NAME, nameNoColor.padStart(20))
     } @ ${withColor(ColorCode.FUNC_PATH, `${pathNoColor}${locationNoColor}`.padEnd(50))}`;
 
     const idRaw = getReqId();

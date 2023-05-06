@@ -28,8 +28,6 @@ CREATE TABLE users (
     eligible boolean DEFAULT false NOT NULL,
     admin boolean DEFAULT false NOT NULL,
 
-    hashed_password varchar(255) NOT NULL,
-
     inserted_at timestamp(0) without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp(0) without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     confirmed_at timestamp(0) without time zone

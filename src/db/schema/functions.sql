@@ -109,3 +109,22 @@ CREATE OR REPLACE FUNCTION links_of_type(chall_id uuid, type link_type) RETURNS 
     SELECT url FROM challenge_links WHERE challenge_id = $1 AND type = $2;
 $$ LANGUAGE SQL;
 
+CREATE TYPE try_signin_ret AS ENUM (
+    'not_found',
+    'bad_auth',
+    'authenticated'
+);
+
+CREATE OR REPLACE FUNCTION get_signin(user_id uuid) RETURNS text AS $$
+    SELECT hashed_password FROM auth_name_pass WHERE user_id = user_id;
+$$ LANGUAGE SQL;
+
+CREATE OR REPLACE FUNCTION try_signin_oauth(user_id uuid, sub text, provider varchar(255)) RETURNS try_signin_ret AS $$
+    SELECT CASE
+        WHEN (SELECT COUNT(*) FROM auth_oauth WHERE user_id = $1) != 0 THEN 'not_found'::public.try_signin_ret
+        WHEN
+            (SELECT sub FROM auth_oauth) != $2 OR
+            (SELECT provider_name FROM auth_oauth) != $3 THEN 'bad_auth'::public.try_signin_ret
+        ELSE 'authenticated'::public.try_signin_ret
+    END result;
+$$ LANGUAGE SQL;

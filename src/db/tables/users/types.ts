@@ -23,12 +23,20 @@ type Eligible = boolean;
 type Admin = boolean;
 
 
-type HashedPassword = string;
+type Auth = {
+    __type: "pass";
+    password: string;
+} | {
+    __type: "oauth";
+    sub: string;
+    provider: string;
+    trustedClientAuth: string;
+};
 
 
 export {
     DbUserMeta,
     Id, Email, Name, TeamId, Score, LastSolve, Eligible, Admin,
-    HashedPassword,
+    Auth,
     QueryReturn,
 }
