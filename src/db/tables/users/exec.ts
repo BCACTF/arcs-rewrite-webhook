@@ -7,7 +7,7 @@ import {
     Auth,
 } from "./types";
 import { DbUserMeta, QueryReturn } from "./types";
-import UserQuery, { CreateNewUser, UpdateUserNamePass, UserJoinTeam, GetUser, GetAllUsers, CheckUserAuth } from "./queries";
+import UserQuery, { CreateNewUser, UpdateUserNamePass, UserJoinTeam, GetUser, GetAllUsers, CheckUserAuth, CheckUsernameAvailability } from "./queries";
 import { confirmTeamPasswordValid, setTeamUpdated } from "../teams/exec";
 import { checkOauthClientAllowed } from "../../../security/incoming-req";
 
@@ -156,7 +156,6 @@ export const execCreateUser = withTransaction(async (client, input: CreateNewUse
     const getUserIdRes = await client.query<GetUserIdQueryRow, [Name]>(getUserIdQuery, [input.name]);
 
     if (getUserIdRes.rowCount !== 1) throw QueryResponseError.server(input, 500, "Unable to find newly-created user");
-    // console.log(getUserIdRes);
     const id = getUserIdRes.rows[0].id;
 
     if (input.auth.__type === "pass") {
@@ -197,9 +196,25 @@ export const execCheckAuth = withTransaction(async (client, input: CheckUserAuth
         return { success: true, output: true };
     } catch (e) {
         if (e instanceof QueryResponseError && e.getStatusCode() === 401) {
-            return { success: true, output: true };
+            return { success: true, output: false };
         } else throw e;
     }
+});
+
+export const execCheckUsernameAvailable = withTransaction(async (
+    client,
+    input: CheckUsernameAvailability,
+): Promise<QueryResultType<boolean, QueryResponseError>> => {
+    const checkQuery = "SELECT COUNT(*) as count from users WHERE name = $1;";
+
+    const queryRes = await client.query<{ count: unknown }, [string]>(
+        checkQuery,
+        [ input.name ],
+    );
+    const count = Number(queryRes.rows[0].count);
+
+    if (Number.isNaN(count) || count !== 0) return { success: true, output: false };
+    else return { success: true, output: true };
 });
 
 export const execUpdateUserNamePass = withTransaction(async (client, input: UpdateUserNamePass): Promise<QueryReturn> => {
@@ -256,6 +271,8 @@ const execUserQuery = async (query: UserQuery): Promise<QueryResultType<unknown,
     switch (query.query.__tag) {
         case "create":
             return await execCreateUser(query.query);
+        case "available":
+            return await execCheckUsernameAvailable(query.query);
         case "auth":
             return await execCheckAuth(query.query);
         case "update":

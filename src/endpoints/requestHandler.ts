@@ -5,7 +5,7 @@ import { validate as isValidUUID } from "uuid";
 
 import * as log from '../logging';
 import { loadVars } from '..';
-import { idLogWrap } from '../fast-req-id';
+import { handlerLogWrap, idLogWrap } from '../fast-req-id';
 
 // handlers for each target service that we recognize
 import { discordHandler } from './discord';
@@ -165,7 +165,7 @@ router.post("/", idLogWrap(async (req: Request, res: Response) => {
     // Execute handlers
     // 
     const handlerResponses = await Promise.all(targetEntries.map(
-        async ([target, data]) => [ target, await mapTargetEntry(requestType, target, data) ] as const
+        async ([target, data]) => [ target, await handlerLogWrap(target, mapTargetEntry)(requestType, target, data) ] as const
     ));
 
 

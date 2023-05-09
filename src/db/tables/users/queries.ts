@@ -9,6 +9,11 @@ export type CreateNewUser = {
     eligible: boolean;
 };
 
+export type CheckUsernameAvailability = {
+    __tag: "available";
+    name: string;
+};
+
 export type CheckUserAuth = {
     __tag: "auth";
     id: string;
@@ -43,7 +48,7 @@ export type GetAllUsers = {
     __tag: "get_all";
 };
 
-type InnerUserQuery = CreateNewUser | CheckUserAuth | UpdateUserNamePass | UserJoinTeam | GetUser | GetAllUsers;
+type InnerUserQuery = CreateNewUser | CheckUsernameAvailability | CheckUserAuth | UpdateUserNamePass | UserJoinTeam | GetUser | GetAllUsers;
 
 type UserQuery = {
     section: "user";
@@ -87,10 +92,13 @@ export const isValidUserQuery = (rawQuery: unknown): rawQuery is InnerUserQuery 
             return true;
         }
         case "auth": {
-            const { id, auth, name, newPassword, eligible } = query;
+            const { id, auth } = query;
             if (typeof id !== "string") return false;
             if (!authIsValid(auth)) return false;
             return true;
+        }
+        case "available": {
+            return typeof query.name === "string";
         }
         case "update": {
             const { id, auth, name, newPassword, eligible } = query;

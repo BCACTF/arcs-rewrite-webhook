@@ -33,6 +33,7 @@ export const withTransaction = <I extends unknown[], S extends unknown>(
         return output;
     } catch (e) {
         client.query("ROLLBACK");
+        console.log(e);
         if (e instanceof QueryResponseError) return {
             success: false,
             error: e,

@@ -1,5 +1,5 @@
 import { inspect } from 'util';
-import getReqId from './fast-req-id';
+import getReqId, { getHandlerName } from './fast-req-id';
 
 
 interface StackFrame {
@@ -126,7 +126,9 @@ const loggingPrefix = (stack: StackFrame | null, level: string) => {
     } @ ${withColor(ColorCode.FUNC_PATH, `${pathNoColor}${locationNoColor}`.padEnd(50))}`;
 
     const idRaw = getReqId();
-    const idStr = idRaw ? withColor(ColorCode.REQUES_ID, `<${idRaw}> `) : "";
+    const handlerRaw = getHandlerName();
+    const innerBuilt = idRaw ? `${idRaw} ${handlerRaw ? handlerRaw : ''}`.trim() : '';
+    const idStr = innerBuilt ? withColor(ColorCode.REQUES_ID, `<${innerBuilt}> `) : "";
 
     return `${time} -> ${identifiers}| ${level} - ${idStr}`;
 };

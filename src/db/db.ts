@@ -11,10 +11,8 @@ import TeamQuery, { isValidTeamQuery } from "./tables/teams/queries";
 import execUserQuery from "./tables/users/exec";
 import UserQuery, { isValidUserQuery } from "./tables/users/queries";
 
-// async function genClient(db: Pool) {
-//     let client = await db.connect()
-//     return client;
-// }
+
+import * as log from '../logging';
 
 type Query = TeamQuery | UserQuery | ChallengeQuery | SolveQuery;
 
@@ -43,20 +41,25 @@ const isValidQuery = (rawQuery: unknown): rawQuery is Query => {
 
 
 export async function execQuery(query: unknown): Promise<QueryResultType<unknown, QueryResponseError>> {
+    const section = typeof query === "object" ? (query as Record<string, unknown> | null)?.section : null;
+    log.trace`Executing ${section} query`;
+
     if (!isValidQuery(query)) {
-        console.log(query);
+        const section = typeof query === "object" ? (query as Record<string, unknown> | null)?.section : null;
+        log.warn`SQL request invalid`;
+        log.debug`Invalid req: ${query}`;
+
         return {
             success: false,
             error: QueryResponseError.clientOther(
-                {
-                    section: typeof query === "object" ? (query as Record<string, unknown> | null)?.section : null,
-                    reason: "invalid_query",
-                },
+                { section, reason: "invalid_query" },
                 400,
                 "Invalid query",
             ),
         };
     }
+
+    log.trace`Verified ${section} query is valid`;
 
     switch (query.section) {
         case "team": return await execTeamQuery(query);

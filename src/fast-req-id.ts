@@ -27,3 +27,15 @@ export const idLogWrap = <Q extends unknown[], R>(fn: (...params: Q) => R) => as
 const getReqId = () => storage.getStore();
 
 export default getReqId;
+
+
+const handlerNameStorage = new AsyncLocalStorage<string>();
+
+export const handlerLogWrap = <Q extends unknown[], R>(handlerName: string, fn: (...params: Q) => R) => async (...params: Q) => {
+    return await handlerNameStorage.run(handlerName.toUpperCase().padStart(3, " ").slice(0, 3), () => {
+        return fn(...params);
+    });
+};
+
+export const getHandlerName = () => handlerNameStorage.getStore();
+
