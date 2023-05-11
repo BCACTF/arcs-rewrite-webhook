@@ -141,7 +141,7 @@ export const execCreateUser = withTransaction(async (client, input: CreateNewUse
     const userCreateQuery = `
     INSERT INTO users (
         email, name, admin, eligible
-    ) VALUES ($1, $2, $3, $4, $5);`;
+    ) VALUES ($1, $2, $3, $4);`;
 
     type GetUserIdQueryRow = { id: Id };
     const getUserIdQuery = `
