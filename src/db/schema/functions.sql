@@ -121,10 +121,9 @@ $$ LANGUAGE SQL;
 
 CREATE OR REPLACE FUNCTION try_signin_oauth(user_id uuid, sub text, provider varchar(255)) RETURNS try_signin_ret AS $$
     SELECT CASE
-        WHEN (SELECT COUNT(*) FROM auth_oauth WHERE user_id = $1) != 0 THEN 'not_found'::public.try_signin_ret
-        WHEN
-            (SELECT sub FROM auth_oauth) != $2 OR
-            (SELECT provider_name FROM auth_oauth) != $3 THEN 'bad_auth'::public.try_signin_ret
+        WHEN (SELECT COUNT(*) FROM auth_oauth WHERE user_id = $1) = 0 THEN 'not_found'::public.try_signin_ret
+        WHEN (SELECT COUNT(*) FROM auth_oauth WHERE user_id = $1 AND sub = $2 AND provider_name = $3) != 1
+            THEN 'bad_auth'::public.try_signin_ret
         ELSE 'authenticated'::public.try_signin_ret
     END result;
 $$ LANGUAGE SQL;
