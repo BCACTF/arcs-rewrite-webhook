@@ -1,10 +1,8 @@
 import express, { Request, Response, Router } from 'express';
 
-import crypto from 'crypto';
 import { validate as isValidUUID } from "uuid";
 
 import * as log from '../logging';
-import { loadVars } from '..';
 import { handlerLogWrap, idLogWrap } from '../fast-req-id';
 
 // handlers for each target service that we recognize
@@ -133,6 +131,7 @@ const mapTargetEntry = async (
         return await handler(payload);
     } catch (e) {
         log.error`Handler ${targetName} failed with error ${e}`;
+        log.debug`Payload ${targetData}`;
         // may include parse issues, if there is a syntax error, ensure given handler is returning the proper format (json or text)
         return {
             status: "failure",

@@ -1,6 +1,7 @@
 import { Handler, Payload, uuid } from "./requestHandler";
 import { loadVars } from "../index";
 import { isValidUUID } from "./deploy";
+import * as log from '../logging';
 
 export type FrontendPayload = {
     _type: string;
@@ -17,7 +18,8 @@ const isValidFrontendPayload = (payload: Payload): payload is FrontendPayload =>
 }
 
 export const frontendHandler : Handler.Fn = async (payload: Payload) => {
-    console.log("JFUEOBWOFBEHWOIFBDJSLBFHDJSBFHJDKS");
+    log.trace`Frontend handler called.`;
+
     const [TARGET_FRONTEND] = loadVars(["TARGET_FRONTEND"]);
     if(!isValidFrontendPayload(payload)) {
         console.log("FRONTEND PAYLOAD IS INVALID IT BREAKS HERE");

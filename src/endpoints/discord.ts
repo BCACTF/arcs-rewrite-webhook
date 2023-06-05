@@ -1,5 +1,6 @@
 import { Payload, Handler, statusCodeOkay } from './requestHandler';
 import { loadVars } from '../index';
+import * as log from '../logging';
 
 enum Urgency {
     LOW = "LOW",
@@ -85,17 +86,28 @@ export const discordHandler: Handler.Fn = async (payload: Payload) => {
         "content": message_body
     };
 
+    log.trace`Webhook payload built: ${processedBody}`;
+
     let response = await fetch(targetUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(processedBody),
     });
 
+    
+    const resBody = await response.text();
+    
+    
+    log.debug`Status ${response.status}: ${response.statusText}`;
+
+    // 204 -> No Content
+    const returnJson = response.status === 204 ? '' : JSON.parse(resBody);
+
     if (!statusCodeOkay(response.status)) {
         return {
             status: "failure",
             content: {
-                reason: await response.json(),
+                reason: returnJson,
                 statusCode: response.status,
             },
         };
@@ -105,7 +117,7 @@ export const discordHandler: Handler.Fn = async (payload: Payload) => {
         status: "success",
         content: {
             handlerName: "discord",
-            data: JSON.stringify(await response.json()),
+            data: JSON.stringify(returnJson),
             statusCode: response.status,
             status: "Message Sent Successfully",
         },

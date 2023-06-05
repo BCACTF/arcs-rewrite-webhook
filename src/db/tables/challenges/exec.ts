@@ -71,11 +71,8 @@ const getChallenge = async (client: PoolClient, id: Chall.Id, serverAtFault?: bo
     const getLinksQuery = `
     SELECT url, type FROM challenge_links WHERE challenge_id = $1;`;
 
-    console.log(getChallQuery);
-    console.log([id]);
 
     const getChallRes = await client.query<ChallengeRow, [Chall.Id]>(getChallQuery, [id]);
-    console.log(getChallRes);
     if (getChallRes.rowCount !== 1) {
         if (serverAtFault) throw QueryResponseError.clientOther({ id }, 500, "Failed to retrieve challenge ID");
         else throw QueryResponseError.clientOther({ id }, 400, "Invalid Challenge ID");
