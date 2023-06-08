@@ -243,7 +243,7 @@ export const execUserJoinTeam = withTransaction(async (client, input: UserJoinTe
     type UserJoinTeam = [Id, string];
     const updateUserTeamQuery = `
     UPDATE users
-    SET teamId = $2
+    SET team_id = $2
     WHERE id = $1;`;
     type TeamEligibility = [Id, Eligible];
     const updateTeamEligibilityQuery = `
@@ -263,7 +263,7 @@ export const execUserJoinTeam = withTransaction(async (client, input: UserJoinTe
         500,
         "Maximum number of team members is not specified.",
     );
-    if (await countTeamMembers(client, input.id) >= maxMembers) throw QueryResponseError.server(
+    if (await countTeamMembers(client, input.teamId) >= maxMembers) throw QueryResponseError.server(
         input.id,
         400,
         "Adding user would exceed the maximum number of team members",

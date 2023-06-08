@@ -87,7 +87,7 @@ export const countTeamMembers = async (client: PoolClient, id: Id): Promise<numb
 export const setTeamUpdated = async (client: PoolClient, id: Id): Promise<void> => {
     const setTeamUpdatedQuery = `
     UPDATE teams
-    SET last_updated = DEFAULT
+    SET updated_at = DEFAULT
     WHERE id = $1;`;
 
     await client.query<[], [Id]>(setTeamUpdatedQuery, [id]);
