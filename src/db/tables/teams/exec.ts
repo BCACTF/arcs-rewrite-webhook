@@ -4,7 +4,8 @@ import { createHash, verifyHash } from "../../passwords";
 import QueryResultType, { QueryResponseError } from "../../queries";
 import { Affiliation, Description, Eligible, HashedPassword, Id, LastSolve, Name, Score } from "./types";
 import { DbTeamMeta, QueryReturn } from "./types";
-import TeamQuery, { CreateNewTeam, GetAllTeams, GetTeam, UpdateTeam } from "./queries";
+import TeamQuery, { CheckTeamnameAvailability, CreateNewTeam, GetAllTeams, GetTeam, UpdateTeam } from "./queries";
+import * as log from '../../../logging';
 
 type TeamRow = { id: Id, name: Name, description: Description, score: Score, last_solve: LastSolve, eligible: Eligible, affiliation: Affiliation };
 
@@ -23,7 +24,8 @@ const metaFromRow = (row: TeamRow) => {
 };
 
 const getTeam = async (client: PoolClient, id: Id, serverAtFault?: boolean): Promise<DbTeamMeta> => {
-    
+    log.trace`Getting team with id ${id}.`;
+
     const getTeamQuery = `
     SELECT
         id, name, description, score,
@@ -31,12 +33,22 @@ const getTeam = async (client: PoolClient, id: Id, serverAtFault?: boolean): Pro
     FROM teams WHERE id = $1;`;
 
     const getTeamRes = await client.query<TeamRow, [Id]>(getTeamQuery, [id]);
-    if (getTeamRes.rowCount !== 1) {
-        if (serverAtFault) throw QueryResponseError.clientOther({ id }, 500, "Failed to retrieve Team");
-        else throw QueryResponseError.clientOther({ id }, 400, "Invalid Team ID");
-    }
 
+    if (getTeamRes.rowCount !== 1) {
+
+
+        if (serverAtFault) {
+            log.error`Failed to find team with id ${id}.`;
+            throw QueryResponseError.clientOther({ id }, 500, "Failed to retrieve Team");
+        } else {
+            log.warn`Failed to find team with id ${id}.`;
+            throw QueryResponseError.clientOther({ id }, 400, "Invalid Team ID");
+        }
+    }
     const teamRow = getTeamRes.rows[0];
+
+    log.warn`${id} identified as ${teamRow.name}.`;
+
     return metaFromRow(teamRow);
 };
 export const confirmTeamPasswordValid = async (client: PoolClient, id: Id, password: HashedPassword): Promise<string> => {
@@ -97,6 +109,9 @@ export const execGetAllTeams = withDbClient(async (client, input: GetAllTeams): 
 });
 
 export const execCreateTeam = withTransaction(async (client, input: CreateNewTeam): Promise<QueryReturn> => {
+    log.trace`Recieved request to create team ${input.name}.`;
+
+
     type TeamCreateQueryInput = [Name, Eligible, Affiliation, HashedPassword];
     const teamCreateQuery = `
     INSERT INTO teams (
@@ -118,17 +133,39 @@ export const execCreateTeam = withTransaction(async (client, input: CreateNewTea
         [input.name, input.eligible, input.affiliation, await createHash(input.password)],
     );
 
+    log.trace`Create team query run.`;
 
     const getTeamIdRes = await client.query<GetTeamIdQueryOutput, [Name]>(getTeamIdQuery, [input.name]);
-    if (getTeamIdRes.rowCount !== 1) throw QueryResponseError.server(input, 500, "Unable to find newly-created team");
+    if (getTeamIdRes.rowCount !== 1) {
+        log.error`Failed to find team ${input.name} supposedly created!`;
+        throw QueryResponseError.server(input, 500, "Unable to find newly-created team");
+    }
     const id = getTeamIdRes.rows[0].id;
 
-
+    log.debug`Team ${input.name} is ${id}`;
+    
     await client.query(initFirstUser, [id, input.initialUser]);
+    
+    log.error`User ${input.initialUser} added to ${input.name}`;
 
     return { success: true, output: await getTeam(client, id) };
 });
 
+export const execCheckTeamnameAvailable = withTransaction(async (
+    client,
+    input: CheckTeamnameAvailability,
+): Promise<QueryResultType<boolean, QueryResponseError>> => {
+    const checkQuery = "SELECT COUNT(*) as count from teams WHERE name = $1;";
+
+    const queryRes = await client.query<{ count: unknown }, [string]>(
+        checkQuery,
+        [ input.name ],
+    );
+    const count = Number(queryRes.rows[0].count);
+
+    if (Number.isNaN(count) || count !== 0) return { success: true, output: false };
+    else return { success: true, output: true };
+});
 
 export const execUpdateTeamMeta = withTransaction(async (client, input: UpdateTeam): Promise<QueryReturn> => {
     const updateQuery = `
@@ -157,6 +194,8 @@ export const execUpdateTeamMeta = withTransaction(async (client, input: UpdateTe
 
 const execTeamQuery = async (query: TeamQuery): Promise<QueryResultType<unknown, QueryResponseError>> => {
     switch (query.query.__tag) {
+        case "available":
+            return await execCheckTeamnameAvailable(query.query);
         case "create":
             return await execCreateTeam(query.query);
         case "update":
