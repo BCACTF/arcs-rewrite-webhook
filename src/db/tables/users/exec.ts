@@ -8,8 +8,9 @@ import {
 } from "./types";
 import { DbUserMeta, QueryReturn } from "./types";
 import UserQuery, { CreateNewUser, UpdateUserNamePass, UserJoinTeam, GetUser, GetAllUsers, CheckUserAuth, CheckUsernameAvailability } from "./queries";
-import { confirmTeamPasswordValid, setTeamUpdated } from "../teams/exec";
+import { confirmTeamPasswordValid, countTeamMembers, setTeamUpdated } from "../teams/exec";
 import { checkOauthClientAllowed } from "../../../security/incoming-req";
+import { loadVars } from "../../..";
 
 type UserRow = {
     id: Id,
@@ -255,6 +256,18 @@ export const execUserJoinTeam = withTransaction(async (client, input: UserJoinTe
         confirmUserAuthValid(client, input.id, input.auth),
         confirmTeamPasswordValid(client, input.teamId, input.teamPassword),
     ]);
+
+    const maxMembers = Number(loadVars(["TEAM_MEMBER_MAX"])[0]);
+    if (!maxMembers) throw QueryResponseError.server(
+        input.id,
+        500,
+        "Maximum number of team members is not specified.",
+    );
+    if (await countTeamMembers(client, input.id) >= maxMembers) throw QueryResponseError.server(
+        input.id,
+        400,
+        "Adding user would exceed the maximum number of team members",
+    );
 
     await client.query<[], UserJoinTeam>(updateUserTeamQuery, [input.id, input.teamId]);
     await setUserUpdated(client, input.id);

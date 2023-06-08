@@ -66,6 +66,24 @@ export const confirmTeamPasswordValid = async (client: PoolClient, id: Id, passw
     if (await verifyHash(password, hash)) return hash;
     else throw QueryResponseError.clientUnauth({ id }, 401, "Invalid Password");
 };
+export const countTeamMembers = async (client: PoolClient, id: Id): Promise<number> => {
+    type MemberCountRow = { member_count: unknown };
+    const countTeamMembersQuery = `
+    SELECT
+        COUNT(*) as member_count
+    FROM users
+        WHERE team_id = $1;`;
+
+    const countMembersRes = await client.query<MemberCountRow, [Id]>(countTeamMembersQuery, [id]);
+
+    if (countMembersRes.rowCount !== 1) throw QueryResponseError.server({ id }, 500, "Failed to count members");
+
+    const memberCount = Number(countMembersRes.rows[0].member_count);
+    
+    if (!memberCount) throw QueryResponseError.server({ id }, 500, "Member count invalid.");
+
+    return memberCount;
+};
 export const setTeamUpdated = async (client: PoolClient, id: Id): Promise<void> => {
     const setTeamUpdatedQuery = `
     UPDATE teams
