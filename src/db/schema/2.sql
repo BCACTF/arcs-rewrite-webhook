@@ -79,7 +79,7 @@ CREATE INDEX solves_chalid_idx ON solve_attempts USING btree (challenge_id);
 CREATE INDEX solves_teamid_idx ON solve_attempts USING btree (team_id);
 CREATE INDEX solves_userid_idx ON solve_attempts USING btree (user_id);
 
-CREATE UNIQUE INDEX solve_succ_attemptid_idx ON solve_successes USING btree (user_id);
+-- CREATE UNIQUE INDEX solve_succ_attemptid_idx ON solve_successes USING btree (user_id);
 CREATE INDEX solve_succ_chalid_idx ON solve_successes USING btree (challenge_id);
 CREATE INDEX solve_succ_teamid_idx ON solve_successes USING btree (team_id);
 CREATE INDEX solve_succ_userid_idx ON solve_successes USING btree (user_id);
